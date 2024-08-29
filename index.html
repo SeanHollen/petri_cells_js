@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Life Sim</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="section">
+        <div>
+            <div>
+                <h1>Life Simulation</h1>
+                <p>
+                    This is an implementation of the sim from
+                    <a href="https://arxiv.org/pdf/2406.19108">this paper</a> which explores how 
+                    self-replicating programs can emerge spontaneously from cellular autonoma.
+                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak">this</a> 
+                    Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
+                </p>
+                <div class="controls">
+                    <button class="control-item" id="boardStepButton">Step</button>
+                    <button class="control-item" id="boardRunButton">Run</button>
+                    <button class="control-item" id="boardRestartButton">Reset</button>
+                    <form class="control-item form-item" id="gridSpeed">
+                        <label for="gridSpeed">Steps per Second:</label>
+                        <input type="number" id="gridSpeed" name="gridSpeed" class="formInput" value="4" required>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div id="lifeBoard">
+            <script type="module" src="visualizeBoard.js"></script>
+        </div>
+        <div class="cell-details">
+            <div id="cell-details-1"></div>
+            <div id="cell-details-2"></div>
+        </div>
+    </div>
+    <div id="visualizeBrainfuck" class="section">
+        <h1>Brainfuck Interpreter</h1>
+        <div class="controls">
+            <button class="control-item" id="bfStepButton">Step</button>
+            <button class="control-item" id="bfRunButton">Run</button>
+            <button class="control-item" id="bfRestartButton">Reset</button>
+            <button class="control-item" id="bfEditButton">Edit</button>
+            <form class="control-item form-item" id="bfSpeed">
+                <label for="bfSpeed">Steps per Second:</label>
+                <input type="number" id="bfSpeed" name="bfSpeed" value="4" class="formInput" required>
+            </form>
+            </div">
+        </div>
+        <div id="bfActionDiv">
+            <div class="bfActionSection">
+                <div>Num Reads</div>
+                <div>Loop Stack</div>
+                <div>Pointer</div>
+                <div>Tape</div>
+                <div>H0 and H1</div>
+            </div>
+            <div class="bfActionSection">
+                <div id="num-reads-vis"></div>
+                <div id="loop-stack-vis"></div>
+                <div id="pointer-vis"></div>
+                <div id="tape-vis"></div>
+                <form id="tape-form" style="display:none;">
+                    <label for="tape-form"></label>
+                    <input id="tape-input" style="width:600px;" name="tape-input" class="formInput" required>
+                    <button id="editTapeForm" form="bfSpeed">Use</button>
+                </form>
+                <div id="h0-h1-vis"></div>
+            </div>
+            <script type="module" src="visualizeBrainfuck.js"></script>
+        </div>
+        <div id="bfDescription">
+            Self-modifying version of <a href="https://en.wikipedia.org/wiki/Brainfuck">Brainfuck</a> 
+            esoteric programming language. The program modifies itself as it executes. Each instruction 
+            is described below.
+            <table>
+                <tr>
+                    <th>Instruction</th>
+                    <th>Code</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>0</td>
+                    <td style="color:#F0F2F3;">0</td>
+                    <td>Determines whether to enter/exit loops</td>
+                </tr>
+                <tr>
+                    <td>&lt;</td>
+                    <td style="color:#E64C3C;">1</td>
+                    <td>h0 = h0 - 1</td>
+                </tr>
+                <tr>
+                    <td>></td>
+                    <td style="color:#F29B11;">2</td>
+                    <td>h0 = h0 + 1</td>
+                </tr>
+                <tr>
+                    <td>{</td>
+                    <td style="color:#F3CF3E;">3</td>
+                    <td>h1 = h1 - 1</td>
+                </tr>
+                <tr>
+                    <td>}</td>
+                    <td style="color:#7A3E00;">4</td>
+                    <td>h1 = h1 + 1</td>
+                </tr>
+                <tr>
+                    <td>-</td>
+                    <td style="color:#145A32;">5</td>
+                    <td>tape[h0] = tape[h0] - 1</td>
+                </tr>
+                <tr>
+                    <td>+</td>
+                    <td style="color:#A2D9CD;">6</td>
+                    <td>tape[h0] = tape[h0] + 1</td>
+                </tr>
+                <tr>
+                    <td>.</td>
+                    <td style="color:#1A5276;">7</td>
+                    <td>tape[h1] = tape[h0]</td>
+                </tr>
+                <tr>
+                    <td>,</td>
+                    <td style="color:#A3E4D7;">8</td>
+                    <td>tape[h0] = tape[h1]</td>
+                </tr>
+                <tr>
+                    <td>[</td>
+                    <td style="color:#8E44AD;">9</td>
+                    <td>if (tape[h0] == 0): jump forwards to matching ] command.</td>
+                </tr>
+                <tr>
+                    <td>]</td>
+                    <td style="color:#AE7AC4;">10</td>
+                    <td>if (tape[h0] != 0): jump backwards to matching [ command.</td>
+                </tr>
+                <tr>
+                    <td>1 to 10</td>
+                    <td>-1 to -10</td>
+                    <td>Used to store memory</td>
+                </tr>
+                <tr>
+                    <td>a to z</td>
+                    <td>-11 to -36</td>
+                    <td>Used to store memory</td>
+                </tr>
+                <tr>
+                    <td>A to Z</td>
+                    <td>11 to 36</td>
+                    <td>Used to store memory</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

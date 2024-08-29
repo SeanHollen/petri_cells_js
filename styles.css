@@ -1,0 +1,60 @@
+body {
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 50px;
+}
+
+.section {
+    width: 800px;
+}
+
+.preserve-spaces {
+    white-space: pre-wrap;
+}
+
+.controls {
+    display: flex;
+    padding-bottom: 10px;
+}
+
+.control-item {
+    margin: 2px;
+}
+
+#bfInterpreter {
+    display: block;
+}
+
+#bfDescription {
+    padding-top: 50px;
+}
+
+table {
+    font-family: "Courier Prime, monospace";
+    border-collapse: collapse;
+}
+
+td,
+th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+.formInput {
+    width: 100px;
+}
+
+.bfActionSection {
+    font-size: 0;
+    display: inline-block;
+    font-family: monospace;
+    white-space: pre;
+}
+
+.bfActionSection > div {
+    font-size: initial;
+}
