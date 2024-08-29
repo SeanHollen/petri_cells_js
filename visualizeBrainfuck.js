@@ -22,11 +22,6 @@ class BrainfuckExecutor {
   }
 
   initContent(layout) {
-    this.textLayout = document.createElement("div");
-    this.textLayout.style.display = "block";
-    this.textLayout.style.width = "auto";
-    this.textLayout.style.height = "auto";
-
     this.numReadsLabel = document.getElementById("num-reads-vis")
     this.paransLabel = document.getElementById("loop-stack-vis")
     this.pointerLabel = document.getElementById("pointer-vis")
@@ -34,8 +29,6 @@ class BrainfuckExecutor {
     this.tapeForm = document.getElementById("tape-form")
     this.tapeInput = document.getElementById("tape-input")
     this.hLabel = document.getElementById("h0-h1-vis")
-
-    layout.appendChild(this.textLayout);
   }
 
   updateState() {
@@ -190,16 +183,18 @@ class BrainfuckExecutor {
   openEditTapeForm() {
     const text = this.tapeLabel.innerText
     this.tapeLabel.style.display = "none"
-    this.tapeForm.style.display = "inline"
+    this.tapeForm.style.display = "inline-flex"
     this.tapeInput.value = text;
   }
 
   editTapeCloseForm() {
     const text = this.tapeInput.value
+    const intArr = fromHumanReadableStr(text)
+    const filteredText = toHumanReadableStr(intArr)
     this.tapeLabel.style.display = "inline"
     this.tapeForm.style.display = "none"
-    this.tapeLabel.innerText = text
-    this.state.tape = fromHumanReadableStr(text)
+    this.tapeLabel.innerText = filteredText
+    this.initState(intArr)
   }
 }
 

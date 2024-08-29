@@ -124,7 +124,9 @@ function fromHumanReadableStr(str) {
         return -(26 + 11 + 1);
       }
     }
-    return str.split("").map(c => hrCharToInt(c));
+    const allowedChars = "%&0123456789<>{}-+.,[]abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const charArr = str.split("").filter(c => allowedChars.includes(c))
+    return charArr.map(c => hrCharToInt(c));
 }
 
 function crossReactPrograms(a, b) {
