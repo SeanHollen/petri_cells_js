@@ -37,7 +37,7 @@ class GridController {
     }
   }
 
-  visualizeProgram(program, cellElement) {
+  visualizeProgram(program, cellElement, x, y) {
     if (!cellElement) return;
 
     const canvas = document.createElement("canvas");
@@ -56,10 +56,21 @@ class GridController {
     }
 
     canvas.addEventListener('click', (event) => {
+      document.getElementById("cell-details").style.display = "inline-block"
+      const cellDetails0 = document.getElementById("cell-details-0")
       const cellDetails1 = document.getElementById("cell-details-1")
-      cellDetails1.innerText = program.join(",")
       const cellDetails2 = document.getElementById("cell-details-2")
-      cellDetails2.innerText = toHumanReadableStr(program)
+      const cellDetails3 = document.getElementById("cell-details-3")
+      cellDetails0.innerText = `x: ${x}, y: ${y}`
+      const asNumbers = program.join(",")
+      cellDetails1.innerText = asNumbers
+      const asHrString = toHumanReadableStr(program)
+      const asChars = asHrString.split("")
+      const asColorsHtml = program.map((num, index) => {
+        return `<div class="char-instruction" style="color:${this.intToColor(num)};">${asChars[index]}</div>`
+      }).join("")
+      cellDetails2.innerHTML = asColorsHtml
+      cellDetails3.innerText = asHrString
     });
 
     cellElement.innerHTML = "";
@@ -129,7 +140,7 @@ class GridController {
   updateGridUI(grid, cells) {
     for (let i = 0; i < grid.length; i++) {
       for (let j = 0; j < grid[i].length; j++) {
-        this.visualizeProgram(grid[i][j], cells[i * grid[i].length + j]);
+        this.visualizeProgram(grid[i][j], cells[i * grid[i].length + j], j, grid.length - i - 1);
       }
     }
     document.getElementById("stepCounter").textContent = `Step: ${this.stepCount}`;

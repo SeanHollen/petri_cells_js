@@ -58,3 +58,20 @@ th {
 .bfActionSection > div {
     font-size: initial;
 }
+
+.cell-details {
+    word-wrap: break-word;
+    white-space: normal;
+    display: none; /* edited by css */
+    background-color: #8b778b;
+    width: 650px;
+}
+
+.char-instruction {
+    display: inline;
+}
+
+.divider {
+    border-bottom: 2px solid grey;
+    width: 800px;
+}
