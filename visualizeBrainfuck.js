@@ -187,9 +187,27 @@ class BrainfuckExecutor {
     this.tapeInput.value = text;
   }
 
+  acceptInput(text) {
+    // TODO: resolve edge cases where some inputted string satisfies both formats
+    const isIntegerFormat = /^[,\-\d]+$/.test(text)
+    if (isIntegerFormat) {
+      const arr = text.split(",")
+      const noEmptyValues = arr.every(Boolean)
+      if (noEmptyValues) {
+        return arr.map(num => parseInt(num));
+      }
+    }
+    const textNoWhitespace = text.replace(/\s+/g, '');
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]]+$/.test(textNoWhitespace)
+    if (isHrBfFormat) {
+      return fromHumanReadableStr(text)
+    }
+    throw new Error(`${text} contains invalid characters`)
+  }
+
   editTapeCloseForm() {
     const text = this.tapeInput.value
-    const intArr = fromHumanReadableStr(text)
+    const intArr = this.acceptInput(text)
     const filteredText = toHumanReadableStr(intArr)
     this.tapeLabel.style.display = "inline"
     this.tapeForm.style.display = "none"
@@ -198,29 +216,49 @@ class BrainfuckExecutor {
   }
 }
 
-const contentController = new BrainfuckExecutor();
 const initialState = [
   4, 9, 5, 1, 0, 3, 3, 1, 8, 1, 2, 8, 1, 6, 0, 4, 8, 4, 6, 9, 7, 6, 6, 8, 2, 10,
   7, 10, 6, 6, 4, 10, 6, 3, 6, 9, 9, 10, 8, 3, 2, 6, 7, 6, 8, 8, 4, 1, 8, 6, 4,
   0, 3, 3, 2, 4, 4, 0, 0, 6, 7, 7, 10, 7,
 ];
+
+const contentController = new BrainfuckExecutor();
 contentController.initContent(document.getElementById("bfActionDiv"));
 contentController.startup(initialState);
-document.getElementById("bfStepButton").addEventListener("click", () => {
+
+function addEventListener(id, action) {
+  // I want to use mousedown rather than click, because it's more snappy
+  // but mousedown doesn't cover spacebar and enter-key presses
+  // and if I register them both, then it causes both to trigger
+  // so I check e.screenX to register whether it was an actual click,
+  // and differentiate between mouse clicks and button clicks that way.
+  document.getElementById(id).addEventListener("mousedown", (e) => {
+    if (e.screenX) {
+      action()
+    }
+  });
+  document.getElementById(id).addEventListener("click", (e) => {
+    if (!e.screenX) {
+      action()
+    }
+  });
+}
+
+addEventListener("bfStepButton", () => {
   contentController.updateState();
   contentController.updateContent();
 });
-const runButton = document.getElementById("bfRunButton");
-runButton.addEventListener("click", () => {
+addEventListener("bfRunButton", () => {
+  const runButton = document.getElementById("bfRunButton");
   contentController.toggleRun(runButton);
 });
-document.getElementById("bfRestartButton").addEventListener("click", () => {
+addEventListener("bfRestartButton", () => {
   contentController.startup();
 });
-document.getElementById("bfEditButton").addEventListener("click", () => {
+addEventListener("bfEditButton", () => {
   contentController.openEditTapeForm();
 });
-document.getElementById("editTapeForm").addEventListener("click", () => {
+addEventListener("editTapeForm", () => {
   event.preventDefault(); // prevents page from refreshing
   contentController.editTapeCloseForm();
 });

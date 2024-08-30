@@ -24,16 +24,12 @@ body {
     margin: 2px;
 }
 
-#bfInterpreter {
-    display: block;
-}
-
-#bfDescription {
+#bf-description {
     padding-top: 50px;
 }
 
 table {
-    font-family: "Courier Prime, monospace";
+    font-family: monospace;
     border-collapse: collapse;
 }
 
@@ -44,27 +40,27 @@ th {
     padding: 8px;
 }
 
-.formInput {
+.form-input {
     width: 100px;
 }
 
-.bfActionSection {
+.bf-action-section {
     font-size: 0;
     display: inline-block;
     font-family: monospace;
     white-space: pre;
 }
 
-.bfActionSection > div {
+.bf-action-section > div {
     font-size: initial;
 }
 
 .cell-details {
     word-wrap: break-word;
     white-space: normal;
-    display: none; /* edited by css */
-    background-color: #8b778b;
-    width: 650px;
+    display: none; /* edited by css to be inline-block */
+    width: 800px;
+    font-family: courier;
 }
 
 .char-instruction {
@@ -76,6 +72,71 @@ th {
     width: 800px;
 }
 
-.bfActionContent {
+.bf-action-content {
     width: 650px;
+}
+
+.copy-icon {
+    cursor: pointer;
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    background: url('https://cdn-icons-png.flaticon.com/512/126/126498.png') no-repeat center;
+    background-size: contain;
+}
+
+
+
+
+:root {
+    --primary-color: rgb(56, 135, 255);
+    --on-hover: #7eb1ff;
+    --on-click: #0066ff;
+    --border-focus: #003a90;
+}
+
+button {
+    align-items: center;
+    background-color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    box-sizing: border-box;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    fill: black;
+    font-family: courier;
+    font-size: 16px;
+    height: 25px;
+    justify-content: center;
+    letter-spacing: -.8px;
+    line-height: 24px;
+    padding: 0 17px;
+    text-align: center;
+    touch-action: manipulation;
+}
+
+button:focus {
+    border-color: var(--border-focus);
+}
+
+button:hover {
+    background-color: var(--on-hover);
+    border-color: var(--on-hover);
+    fill: var(--primary-color);
+}
+
+button:active {
+    background-color: var(--on-hover);
+    border-color: var(--on-hover);
+    fill: var(--primary-color);
+    animation: flashText 0.3s forwards;
+}
+
+@keyframes flashText {
+    0% {
+        background-color: var(--on-click);
+    }
+    100% {
+        background-color: var(--on-hover);
+    }
 }

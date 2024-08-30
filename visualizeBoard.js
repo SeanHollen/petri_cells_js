@@ -10,8 +10,12 @@ window.toHumanReadableStr = toHumanReadableStr;
 window.fromHumanReadableStr = fromHumanReadableStr;
 
 class GridController {
-  intToColor(num) {
-    const colorMapping = {
+  constructor() {
+    this.copyIconEventListener = (e) => {
+        navigator.clipboard.writeText(toHumanReadableStr(this.lastSelectedProgram));
+        document.getElementById("copy-icon-validation").style.display = "inline-block";
+    };
+    this.colorMapping = {
       0: "#F0F2F3", // white
       1: "#E64C3C", // red
       2: "#F29B11", // orange
@@ -24,9 +28,11 @@ class GridController {
       9: "#8E44AD", // purple
       10: "#AE7AC4", // pink
     };
+  }
 
-    if (num in colorMapping) {
-      return colorMapping[num];
+  intToColor(num) {
+    if (num in this.colorMapping) {
+      return this.colorMapping[num];
     } else if (num < 0) {
       const x = Math.max(0, 256 + num);
       return `rgb(${x},${x},${x})`;
@@ -41,41 +47,61 @@ class GridController {
     if (!cellElement) return;
 
     const canvas = document.createElement("canvas");
+    const previousCanvas = cellElement.getElementsByTagName("canvas")[0];
+    canvas.id = `${x}_${y}`;
     canvas.width = 32;
     canvas.height = 32;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
 
+    const updatesSet = {};
     for (let i = 0; i < 64; i++) {
       const x = (i % 8) * 4;
       const y = Math.floor(i / 8) * 4;
       const color = this.intToColor(program[i]);
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, 4, 4);
+      const updates = [x, y];
+      if (!updatesSet[color]) {
+        updatesSet[color] = [];
+      }
+      updatesSet[color].push(updates);
     }
-
-    canvas.addEventListener('click', (event) => {
-      document.getElementById("cell-details").style.display = "inline-block"
-      const cellDetails0 = document.getElementById("cell-details-0")
-      const cellDetails1 = document.getElementById("cell-details-1")
-      const cellDetails2 = document.getElementById("cell-details-2")
-      const cellDetails3 = document.getElementById("cell-details-3")
-      cellDetails0.innerText = `x: ${x}, y: ${y}`
-      const asNumbers = program.join(",")
-      cellDetails1.innerText = asNumbers
-      const asHrString = toHumanReadableStr(program)
-      const asChars = asHrString.split("")
-      const asColorsHtml = program.map((num, index) => {
-        return `<div class="char-instruction" style="color:${this.intToColor(num)};">${asChars[index]}</div>`
-      }).join("")
-      cellDetails2.innerHTML = asColorsHtml
-      cellDetails3.innerText = asHrString
+    Object.keys(updatesSet).forEach((color) => {
+      ctx.fillStyle = color;
+      updatesSet[color].forEach((update) => {
+        [x, y] = update;
+        ctx.fillRect(x, y, 4, 4);
+      });
     });
+
+    const cellClickEventListener = (event) => {
+      this.lastSelectedProgram = program
+      document.getElementById("cell-details").style.display = "inline-block";
+      const cellDetails0 = document.getElementById("cell-details-0");
+      const cellDetails1 = document.getElementById("cell-details-1");
+      const cellDetails2 = document.getElementById("cell-details-2");
+      cellDetails0.innerText = `x: ${x}, y: ${y}`;
+      const asNumbers = program.join(",");
+      cellDetails1.innerText = asNumbers;
+      const asHrString = toHumanReadableStr(program);
+      const asChars = asHrString.split("");
+      const asColorsHtml = program
+        .map((num, index) => {
+          return `<div class="char-instruction" style="background-color:${this.intToColor(
+            num
+          )};">${asChars[index]}</div>`;
+        })
+        .join("");
+      cellDetails2.innerHTML = asColorsHtml;
+    };
+    canvas.addEventListener("click", cellClickEventListener);
+
+    document
+      .getElementById("copy-icon")
+      .addEventListener("click", this.copyIconEventListener);
 
     cellElement.innerHTML = "";
     cellElement.appendChild(canvas);
-    cellElement.style.aspectRatio = "1 / 1";
   }
 
   initGridState(width, height) {
@@ -110,6 +136,7 @@ class GridController {
       const cell = document.createElement("div");
       cell.style.backgroundColor = "#fff";
       cell.style.cursor = "pointer";
+      cell.style.aspectRatio = "1 / 1";
       grid.appendChild(cell);
       cells.push(cell);
     }
@@ -140,57 +167,80 @@ class GridController {
   updateGridUI(grid, cells) {
     for (let i = 0; i < grid.length; i++) {
       for (let j = 0; j < grid[i].length; j++) {
-        this.visualizeProgram(grid[i][j], cells[i * grid[i].length + j], j, grid.length - i - 1);
+        this.visualizeProgram(
+          grid[i][j],
+          cells[i * grid[i].length + j],
+          j,
+          grid.length - i - 1
+        );
       }
     }
-    document.getElementById("stepCounter").textContent = `Step: ${this.stepCount}`;
+    document.getElementById(
+      "stepCounter"
+    ).textContent = `Step: ${this.stepCount}`;
   }
 
   stopRunning(button) {
     this.running = false;
-    button.textContent = 'Run';
+    button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
   toggleRun(button, grid, cells) {
     if (this.running) {
-      this.stopRunning(button)
-    } else {
-      const speedForm = document.getElementById('gridSpeed')[0];
-      const speed = parseFloat(speedForm.value);
-
-      this.running = true;
-      button.textContent = 'Pause';
-      this.runInterval = setInterval(() => {
-        grid = this.updateGridState(grid);
-        this.updateGridUI(grid, cells);
-      }, 1000 / speed);
+      this.stopRunning(button);
+      return;
     }
-  }
+    const speedForm = document.getElementById("gridSpeed")[0];
+    const speed = parseFloat(speedForm.value);
 
-  onClick(index) {
-    // TODO
-    console.log("click");
+    this.running = true;
+    button.textContent = "Pause";
+    this.runInterval = setInterval(() => {
+      grid = this.updateGridState(grid);
+      let time = new Date();
+      this.updateGridUI(grid, cells);
+    //   console.log(`${new Date() - time} milliseconds to update ui`);
+    }, 1000 / speed);
   }
 }
 
-
 const WIDTH = 20;
 const HEIGHT = 20;
+
 const contentController = new GridController();
 let grid = contentController.initGridState(WIDTH, HEIGHT);
 const cells = contentController.initGridUI(WIDTH, HEIGHT);
 contentController.updateGridUI(grid, cells);
-document.getElementById("boardStepButton").addEventListener("click", () => {
+
+function addEventListener(id, action) {
+  // I want to use mousedown rather than click, because it's more snappy
+  // but mousedown doesn't cover spacebar and enter-key presses
+  // and if I register them both, then it causes both to trigger
+  // so I check e.screenX to register whether it was an actual click,
+  // and differentiate between mouse clicks and button clicks that way.
+  document.getElementById(id).addEventListener("mousedown", (e) => {
+    if (e.screenX) {
+      action();
+    }
+  });
+  document.getElementById(id).addEventListener("click", (e) => {
+    if (!e.screenX) {
+      action();
+    }
+  });
+}
+
+addEventListener("boardStepButton", () => {
   grid = contentController.updateGridState(grid);
   contentController.updateGridUI(grid, cells);
 });
-const runButton = document.getElementById("boardRunButton")
-runButton.addEventListener("click", () => {
+const runButton = document.getElementById("boardRunButton");
+addEventListener("boardRunButton", () => {
   contentController.toggleRun(runButton, grid, cells);
 });
-document.getElementById("boardRestartButton").addEventListener("click", () => {
+addEventListener("boardRestartButton", () => {
   grid = contentController.initGridState(WIDTH, HEIGHT);
   contentController.updateGridUI(grid, cells);
-  contentController.stopRunning(runButton)
+  contentController.stopRunning(runButton);
 });
