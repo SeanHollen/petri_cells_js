@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Life Sim</title>
+    <title>petri_cells</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -12,51 +12,71 @@
     <div class="section">
         <div>
             <div>
-                <h1>Life Simulation</h1>
+                <h1>Petri Cells</h1>
                 <p>
                     This is an implementation of the sim from
-                    <a href="https://arxiv.org/pdf/2406.19108">this paper</a> which explores how 
+                    <a href="https://arxiv.org/pdf/2406.19108">this paper</a> which explores how
                     self-replicating programs can emerge spontaneously from cellular autonoma.
-                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak">this</a> 
+                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak">this</a>
                     Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
                 </p>
-                <div class="controls">
-                    <button class="control-item" id="boardStepButton">Step</button>
-                    <button class="control-item" id="boardRunButton">Run</button>
-                    <button class="control-item" id="boardRestartButton">New</button>
-                    <form class="control-item form-item" id="gridSpeed">
-                        <label for="gridSpeed">Steps per Second:</label>
-                        <input type="number" id="gridSpeed" name="gridSpeed" class="form-input" value="5" required>
-                    </form>
+                <div>
+                    <div class="controls">
+                        <button class="control-item" id="board-step-button">Step</button>
+                        <button class="control-item" id="board-run-button">Run</button>
+                        <button class="control-item" id="board-restart-button">New</button>
+                    </div>
+                    <div class="controls">
+                        <form class="control-item form-item" id="grid-speed">
+                            <label for="grid-speed">Steps/Second:</label>
+                            <input type="number" id="grid-speed" name="grid-speed" class="form-input" value="5"
+                                required>
+                        </form>
+                        <form class="control-item form-item" id="bf-w">
+                            <label for="bf-w">Width:</label>
+                            <input type="number" id="bf-w" name="bf-w" value="20" class="form-input width-height-input"
+                                required>
+                        </form>
+                        <form class="control-item form-item" id="bf-h">
+                            <label for="bf-h">Height:</label>
+                            <input type="number" id="bf-h" name="bf-h" value="20" class="form-input width-height-input"
+                                required>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-        <div id="lifeBoard">
+        <div id="life-board">
             <script type="module" src="visualizeBoard.js"></script>
         </div>
         <div id="cell-details" class="cell-details">
-            <div id="cell-details-0"></div>
             <div id="cell-details-1"></div>
             <div id="cell-details-2" style="display:inline-block"></div>
             <div id="copy-icon" class="copy-icon" style="display:inline-block" title="Copy to clipboard"></div>
             <div id="copy-icon-validation" style="display:none;">copied</div>
         </div>
     </div>
-    <hr class="divider"></hr>
-    <div id="visualizeBrainfuck" class="section">
+    <hr class="divider">
+    </hr>
+    <div id="visualize-brainfuck" class="section">
         <h1>Brainfuck Interpreter</h1>
-        <div class="controls">
-            <button class="control-item" id="bfStepButton">Step</button>
-            <button class="control-item" id="bfRunButton">Run</button>
-            <button class="control-item" id="bfRestartButton">New</button>
-            <button class="control-item" id="bfEditButton">Edit</button>
-            <form class="control-item form-item" id="bfSpeed">
-                <label for="bfSpeed">Steps per Second:</label>
-                <input type="number" id="bfSpeed" name="bfSpeed" value="5" class="form-input" required>
-            </form>
+        <div>
+            <div class="controls">
+                <button class="control-item" id="bf-back-button">Back</button>
+                <button class="control-item" id="bf-step-button">Step</button>
+                <button class="control-item" id="bf-run-button">Run</button>
+                <button class="control-item" id="bf-restart-button">New</button>
+                <button class="control-item" id="bf-edit-button">Edit</button>
+            </div>
+            <div class="controls">
+                <form class="control-item form-item" id="bf-speed">
+                    <label for="bf-speed">Steps/Second:</label>
+                    <input type="number" id="bf-speed" name="bf-speed" value="5" class="form-input" required>
+                </form>
+            </div>
             </div">
         </div>
-        <div id="bfActionDiv">
+        <div id="bf-action-div">
             <div class="bf-action-section">
                 <div>Num Reads</div>
                 <div>Loop Stack</div>
@@ -70,91 +90,92 @@
                 <div id="pointer-vis"></div>
                 <div id="tape-vis"></div>
                 <form id="tape-form" style="display:none;">
-                    <input id="tape-input" style="width:500px; display: inline" name="tape-input" class="form-input" required>
-                    <button id="editTapeForm" form="bfSpeed" wtyle="display: inline;">Save</button>
+                    <input id="tape-input" style="width:500px; display: inline" name="tape-input" class="form-input"
+                        required>
+                    <button id="edit-tape-form" form="bf-speed" wtyle="display: inline;">Save</button>
                 </form>
                 <div id="h0-h1-vis"></div>
             </div>
             <script type="module" src="visualizeBrainfuck.js"></script>
         </div>
         <div id="bf-description">
-            Self-modifying version of <a href="https://en.wikipedia.org/wiki/Brainfuck">Brainfuck</a> 
-            esoteric programming language. The program modifies itself as it executes. Each instruction 
+            Self-modifying version of <a href="https://en.wikipedia.org/wiki/Brainfuck">Brainfuck</a>
+            esoteric programming language. The program modifies itself as it executes. Each instruction
             is described below.
             <table>
                 <tr>
-                    <th>Instruction</th>
                     <th>Code</th>
+                    <th>Instruction</th>
                     <th>Description</th>
                 </tr>
                 <tr>
-                    <td>0</td>
                     <td style="background-color:#F0F2F3;">0</td>
+                    <td>0</td>
                     <td>Determines whether to enter/exit loops</td>
                 </tr>
                 <tr>
-                    <td>&lt;</td>
                     <td style="background-color:#E64C3C;">1</td>
+                    <td>&lt;</td>
                     <td>h0 = h0 - 1</td>
                 </tr>
                 <tr>
-                    <td>></td>
                     <td style="background-color:#F29B11;">2</td>
+                    <td>></td>
                     <td>h0 = h0 + 1</td>
                 </tr>
                 <tr>
-                    <td>{</td>
                     <td style="background-color:#F3CF3E;">3</td>
+                    <td>{</td>
                     <td>h1 = h1 - 1</td>
                 </tr>
                 <tr>
-                    <td>}</td>
                     <td style="background-color:#7A3E00;">4</td>
+                    <td>}</td>
                     <td>h1 = h1 + 1</td>
                 </tr>
                 <tr>
-                    <td>-</td>
                     <td style="background-color:#145A32;">5</td>
+                    <td>-</td>
                     <td>tape[h0] = tape[h0] - 1</td>
                 </tr>
                 <tr>
-                    <td>+</td>
                     <td style="background-color:#A2D9CD;">6</td>
+                    <td>+</td>
                     <td>tape[h0] = tape[h0] + 1</td>
                 </tr>
                 <tr>
-                    <td>.</td>
                     <td style="background-color:#1A5276;">7</td>
+                    <td>.</td>
                     <td>tape[h1] = tape[h0]</td>
                 </tr>
                 <tr>
-                    <td>,</td>
                     <td style="background-color:#A3E4D7;">8</td>
+                    <td>,</td>
                     <td>tape[h0] = tape[h1]</td>
                 </tr>
                 <tr>
-                    <td>[</td>
                     <td style="background-color:#8E44AD;">9</td>
+                    <td>[</td>
                     <td>if (tape[h0] == 0): jump forwards to matching ] command.</td>
                 </tr>
                 <tr>
-                    <td>]</td>
                     <td style="background-color:#AE7AC4;">10</td>
+                    <td>]</td>
                     <td>if (tape[h0] != 0): jump backwards to matching [ command.</td>
                 </tr>
                 <tr>
-                    <td>1 to 10</td>
                     <td>-1 to -10</td>
+                    <td>1 to 10</td>
                     <td>Used to store memory</td>
                 </tr>
                 <tr>
-                    <td>a to z</td>
                     <td>-11 to -36</td>
+                    <td>a to z</td>
                     <td>Used to store memory</td>
                 </tr>
                 <tr>
-                    <td>A to Z</td>
                     <td>11 to 36</td>
+                    <td>A to Z</td>
                     <td>Used to store memory</td>
                 </tr>
             </table>

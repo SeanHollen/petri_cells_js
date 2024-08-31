@@ -74,13 +74,23 @@ class GridController {
       });
     });
 
-    const cellClickEventListener = (event) => {
-      this.lastSelectedProgram = program
+    const cellClickEventListener = (e) => {
+      if (this.lastSelectedProgram) {
+        this.lastSelectedCellElement.style.border = "none";
+        document.getElementById("cell-details").style.display = "none";
+        document.getElementById("copy-icon-validation").style.display = "none";
+        if (program == this.lastSelectedProgram) {
+            this.lastSelectedProgram = null;
+            return;
+        }
+      }
+      this.lastSelectedProgram = program;
+      this.lastSelectedCellElement = cellElement;
+
       document.getElementById("cell-details").style.display = "inline-block";
-      const cellDetails0 = document.getElementById("cell-details-0");
       const cellDetails1 = document.getElementById("cell-details-1");
       const cellDetails2 = document.getElementById("cell-details-2");
-      cellDetails0.innerText = `x: ${x}, y: ${y}`;
+
       const asNumbers = program.join(",");
       cellDetails1.innerText = asNumbers;
       const asHrString = toHumanReadableStr(program);
@@ -93,6 +103,7 @@ class GridController {
         })
         .join("");
       cellDetails2.innerHTML = asColorsHtml;
+      cellElement.style.border = "3px solid black";
     };
     canvas.addEventListener("click", cellClickEventListener);
 
@@ -113,7 +124,7 @@ class GridController {
   }
 
   initGridUI(width, height) {
-    const container = document.getElementById("lifeBoard");
+    const container = document.getElementById("life-board");
     container.innerHTML = "";
 
     const stepCounter = document.createElement("div");
@@ -129,14 +140,12 @@ class GridController {
     grid.style.gridTemplateColumns = `repeat(${width}, 3.5vmin)`;
     grid.style.gridTemplateRows = `repeat(${height}, 3.5vmin)`;
     grid.style.gap = ".4vmin";
-    grid.style.padding = ".4vmin";
     container.appendChild(grid);
     const cells = [];
     for (let i = 0; i < width * height; i++) {
       const cell = document.createElement("div");
       cell.style.backgroundColor = "#fff";
       cell.style.cursor = "pointer";
-      cell.style.aspectRatio = "1 / 1";
       grid.appendChild(cell);
       cells.push(cell);
     }
@@ -191,7 +200,7 @@ class GridController {
       this.stopRunning(button);
       return;
     }
-    const speedForm = document.getElementById("gridSpeed")[0];
+    const speedForm = document.getElementById("grid-speed")[0];
     const speed = parseFloat(speedForm.value);
 
     this.running = true;
@@ -210,7 +219,7 @@ const HEIGHT = 20;
 
 const contentController = new GridController();
 let grid = contentController.initGridState(WIDTH, HEIGHT);
-const cells = contentController.initGridUI(WIDTH, HEIGHT);
+let cells = contentController.initGridUI(WIDTH, HEIGHT);
 contentController.updateGridUI(grid, cells);
 
 function addEventListener(id, action) {
@@ -231,16 +240,21 @@ function addEventListener(id, action) {
   });
 }
 
-addEventListener("boardStepButton", () => {
+addEventListener("board-step-button", () => {
   grid = contentController.updateGridState(grid);
   contentController.updateGridUI(grid, cells);
 });
-const runButton = document.getElementById("boardRunButton");
-addEventListener("boardRunButton", () => {
+const runButton = document.getElementById("board-run-button");
+addEventListener("board-run-button", () => {
   contentController.toggleRun(runButton, grid, cells);
 });
-addEventListener("boardRestartButton", () => {
-  grid = contentController.initGridState(WIDTH, HEIGHT);
+addEventListener("board-restart-button", () => {
+  const inputtedWidth = document.getElementById("bf-w")[0].value;
+  const width = parseFloat(inputtedWidth) || WIDTH;
+  const inputtedHeight = document.getElementById("bf-h")[0].value;
+  const height = parseFloat(inputtedHeight) || HEIGHT;
+  cells = contentController.initGridUI(width, height);
+  grid = contentController.initGridState(width, height);
   contentController.updateGridUI(grid, cells);
   contentController.stopRunning(runButton);
 });

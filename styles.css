@@ -8,7 +8,7 @@ body {
 }
 
 .section {
-    width: 800px;
+    width: 700px;
 }
 
 .preserve-spaces {
@@ -40,8 +40,19 @@ th {
     padding: 8px;
 }
 
+form {
+    padding-right: 20px;;
+}
+
 .form-input {
     width: 100px;
+    height: 21px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.width-height-input {
+    width: 50px;
 }
 
 .bf-action-section {
@@ -53,6 +64,10 @@ th {
 
 .bf-action-section > div {
     font-size: initial;
+}
+
+.bf-action-content {
+    width: 500px;
 }
 
 .cell-details {
@@ -72,10 +87,6 @@ th {
     width: 800px;
 }
 
-.bf-action-content {
-    width: 650px;
-}
-
 .copy-icon {
     cursor: pointer;
     width: 12px;
@@ -85,8 +96,7 @@ th {
     background-size: contain;
 }
 
-
-
+/* buttons */
 
 :root {
     --primary-color: rgb(56, 135, 255);

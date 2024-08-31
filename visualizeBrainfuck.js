@@ -1,7 +1,12 @@
 import { randomProgram, toHumanReadableStr, fromHumanReadableStr } from "./brainfuckLogic.js";
 
 class BrainfuckExecutor {
+  constructor() {
+    this.running = false;
+  }
+
   initState(startingTape) {
+    this.history = [];
     if (startingTape !== null) {
       this.program1 = startingTape;
     } else {
@@ -17,11 +22,10 @@ class BrainfuckExecutor {
       numReads: 0,
       maxReads: 2 ** 13,
     };
-    this.running = false;
     this.runInterval = null;
   }
 
-  initContent(layout) {
+  initContent() {
     this.numReadsLabel = document.getElementById("num-reads-vis")
     this.paransLabel = document.getElementById("loop-stack-vis")
     this.pointerLabel = document.getElementById("pointer-vis")
@@ -32,19 +36,26 @@ class BrainfuckExecutor {
   }
 
   updateState() {
-    this.state = this.updateStateHelper(this.state);
-    this.updateContent();
+    if (this.runningBackwards) {
+      this.backState();
+      return;
+    }
+    this.history.push(this.state)
+    this.state = this.updateStateLogic(this.state);
+    this.runningBackwards = false;
   }
 
-  updateStateHelper({
-    tape,
-    pointer,
-    head0,
-    head1,
-    loopStack,
-    numReads,
-    maxReads,
-  }) {
+  backState() {
+    if (this.history.length > 0) {
+      this.state = this.history.pop()
+    }
+  }
+
+  updateStateLogic(state) {
+    let { tape, pointer, head0, head1, loopStack, numReads, maxReads } = state;
+    if (pointer >= tape.length) {
+      return state;
+    }
     numReads += 1;
     let char = tape[pointer];
     switch (char) {
@@ -106,7 +117,7 @@ class BrainfuckExecutor {
         }
         break;
     }
-    pointer = (pointer + 1) % tape.length;
+    pointer++;
     return { tape, pointer, head0, head1, loopStack, numReads, maxReads };
   }
 
@@ -126,7 +137,7 @@ class BrainfuckExecutor {
       "" +
       " ".repeat(pointer) +
       "v" +
-      " ".repeat(this.tapeLength - pointer - 1);
+      " ".repeat(this.tapeLength - pointer);
 
     const addressConvert = (i) => {
       if (i === h0 && i === h1) {
@@ -154,8 +165,12 @@ class BrainfuckExecutor {
       button.textContent = "Run";
       clearInterval(this.runInterval);
     } else {
-      const speedForm = document.getElementById("bfSpeed")[0];
-      const speed = parseFloat(speedForm.value);
+      const speedForm = document.getElementById("bf-speed")[0];
+      let speed = parseFloat(speedForm.value);
+      if (speed < 0) {
+        this.runningBackwards = true;
+        speed *= -1;
+      }
 
       this.running = true;
       button.textContent = "Pause";
@@ -169,7 +184,7 @@ class BrainfuckExecutor {
   startup(state) {
     if (this.running) {
       this.running = false;
-      const runButton = document.getElementById("bfRunButton");
+      const runButton = document.getElementById("bf-run-button");
       runButton.textContent = "Run";
       clearInterval(this.runInterval);
     }
@@ -188,13 +203,12 @@ class BrainfuckExecutor {
   }
 
   acceptInput(text) {
-    // TODO: resolve edge cases where some inputted string satisfies both formats
     const isIntegerFormat = /^[,\-\d]+$/.test(text)
     if (isIntegerFormat) {
-      const arr = text.split(",")
-      const noEmptyValues = arr.every(Boolean)
-      if (noEmptyValues) {
-        return arr.map(num => parseInt(num));
+      const intArr = text.split(",").map(num => parseInt(num));
+      const validValues = intArr.every((i) => !isNaN(i) && i !== null && i !== undefined);
+      if (validValues) {
+        return intArr;
       }
     }
     const textNoWhitespace = text.replace(/\s+/g, '');
@@ -223,7 +237,7 @@ const initialState = [
 ];
 
 const contentController = new BrainfuckExecutor();
-contentController.initContent(document.getElementById("bfActionDiv"));
+contentController.initContent();
 contentController.startup(initialState);
 
 function addEventListener(id, action) {
@@ -242,23 +256,40 @@ function addEventListener(id, action) {
       action()
     }
   });
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") {
+      // document.getElementById("bf-step-button").click();
+    } else if (e.key === "ArrowLeft") {
+      // document.getElementById("bf-back-button").click();
+    }
+  });
 }
 
-addEventListener("bfStepButton", () => {
+addEventListener("bf-step-button", () => {
   contentController.updateState();
   contentController.updateContent();
 });
-addEventListener("bfRunButton", () => {
-  const runButton = document.getElementById("bfRunButton");
+addEventListener("bf-run-button", () => {
+  const runButton = document.getElementById("bf-run-button");
   contentController.toggleRun(runButton);
 });
-addEventListener("bfRestartButton", () => {
+addEventListener("bf-restart-button", () => {
   contentController.startup();
 });
-addEventListener("bfEditButton", () => {
+addEventListener("bf-edit-button", () => {
   contentController.openEditTapeForm();
 });
-addEventListener("editTapeForm", () => {
+addEventListener("bf-back-button", () => {
+  contentController.backState();
+  contentController.updateContent();
+});
+addEventListener("edit-tape-form", () => {
   event.preventDefault(); // prevents page from refreshing
   contentController.editTapeCloseForm();
+});
+document.getElementById("tape-form").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault(); // prevents page from refreshing
+    contentController.editTapeCloseForm();
+  } 
 });
