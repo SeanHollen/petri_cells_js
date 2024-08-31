@@ -22,6 +22,7 @@ class BrainfuckExecutor {
       numReads: 0,
       maxReads: 2 ** 13,
     };
+    clearInterval(this.runInterval);
     this.runInterval = null;
   }
 

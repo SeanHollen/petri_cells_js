@@ -152,15 +152,15 @@ class GridController {
     return cells;
   }
 
-  updateGridState(grid) {
+  updateGridState(grid, range) {
     this.stepCount++;
     const height = grid.length;
     const width = grid[0].length;
 
     for (let i = 0; i < height; i++) {
       for (let j = 0; j < width; j++) {
-        const x2 = (i + Math.floor(Math.random() * 5) - 2 + height) % height;
-        const y2 = (j + Math.floor(Math.random() * 5) - 2 + width) % width;
+        const x2 = (i + Math.floor(Math.random() * (2 * range + 1)) - range + height) % height;
+        const y2 = (j + Math.floor(Math.random() * (2 * range + 1)) - range + width) % width;
         const [newProgram1, newProgram2] = crossReactPrograms(
           grid[i][j],
           grid[x2][y2]
@@ -203,10 +203,13 @@ class GridController {
     const speedForm = document.getElementById("grid-speed")[0];
     const speed = parseFloat(speedForm.value);
 
+    const rangeForm = document.getElementById("grid-range")[0];
+    const range = parseFloat(rangeForm.value);
+
     this.running = true;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      grid = this.updateGridState(grid);
+      grid = this.updateGridState(grid, range);
       let time = new Date();
       this.updateGridUI(grid, cells);
     //   console.log(`${new Date() - time} milliseconds to update ui`);
@@ -214,12 +217,13 @@ class GridController {
   }
 }
 
-const WIDTH = 20;
-const HEIGHT = 20;
-
 const contentController = new GridController();
-let grid = contentController.initGridState(WIDTH, HEIGHT);
-let cells = contentController.initGridUI(WIDTH, HEIGHT);
+const inputtedWidth = document.getElementById("bf-w")[0].value;
+const width = parseFloat(inputtedWidth);
+const inputtedHeight = document.getElementById("bf-h")[0].value;
+const height = parseFloat(inputtedHeight);
+let cells = contentController.initGridUI(width, height);
+let grid = contentController.initGridState(width, height);
 contentController.updateGridUI(grid, cells);
 
 function addEventListener(id, action) {
@@ -241,7 +245,9 @@ function addEventListener(id, action) {
 }
 
 addEventListener("board-step-button", () => {
-  grid = contentController.updateGridState(grid);
+  const rangeForm = document.getElementById("grid-range")[0];
+  const range = parseFloat(rangeForm.value);
+  grid = contentController.updateGridState(grid, range);
   contentController.updateGridUI(grid, cells);
 });
 const runButton = document.getElementById("board-run-button");
@@ -250,9 +256,9 @@ addEventListener("board-run-button", () => {
 });
 addEventListener("board-restart-button", () => {
   const inputtedWidth = document.getElementById("bf-w")[0].value;
-  const width = parseFloat(inputtedWidth) || WIDTH;
+  const width = parseFloat(inputtedWidth) || 20;
   const inputtedHeight = document.getElementById("bf-h")[0].value;
-  const height = parseFloat(inputtedHeight) || HEIGHT;
+  const height = parseFloat(inputtedHeight) || 20;
   cells = contentController.initGridUI(width, height);
   grid = contentController.initGridState(width, height);
   contentController.updateGridUI(grid, cells);
