@@ -15,9 +15,9 @@
                 <h1>Petri Cells</h1>
                 <p>
                     This is an implementation of the sim from
-                    <a href="https://arxiv.org/pdf/2406.19108">this paper</a> which explores how
+                    <a href="https://arxiv.org/pdf/2406.19108" target=”_blank”>this paper</a> which explores how
                     self-replicating programs can emerge spontaneously from cellular autonoma.
-                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak">this</a>
+                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak" target=”_blank”>this</a>
                     Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
                     True "life" only emerges occasionally, so run 10+ times (and get lucky).
                 </p>
@@ -33,6 +33,11 @@
                             <input type="number" id="grid-speed" name="grid-speed" class="form-input" value="5"
                                 required>
                         </form>
+                        <form class="control-item form-item" id="grid-range">
+                            <label for="grid-range">Range:</label>
+                            <input type="number" id="grid-range" name="grid-range" value="2" class="form-input width-height-input"
+                                required>
+                        </form>
                         <form class="control-item form-item" id="bf-w">
                             <label for="bf-w">Width:</label>
                             <input type="number" id="bf-w" name="bf-w" value="20" class="form-input width-height-input"
@@ -43,22 +48,17 @@
                             <input type="number" id="bf-h" name="bf-h" value="20" class="form-input width-height-input"
                                 required>
                         </form>
-                        <form class="control-item form-item" id="grid-range">
-                            <label for="grid-range">Range:</label>
-                            <input type="number" id="grid-range" name="grid-range" value="2" class="form-input width-height-input"
-                                required>
-                        </form>
                     </div>
                 </div>
             </div>
         </div>
         <div id="life-board">
-            <div id="step-counter">Step: 0</div>
+            <div id="step-counter">Epoch: 0</div>
             <div id="grid-container"></div>
             <script type="module" src="visualizeBoard.js"></script>
         </div>
         <div id="cell-details" class="cell-details">
-            <div id="cell-details-1"></div>
+            <div id="cell-details-1" style="display:block;width:700px"></div>
             <form id="cell-details-1-edit-form" class="cell-details-edit-form" style="display:none;">
                 <input id="cell-details-1-edit-input" style="width:500px; display: inline" name="cell-details-1-edit-input" class="cell-details-1-edit-input"
                     required>
@@ -144,7 +144,7 @@
                     <td>h0 = h0 + 1</td>
                 </tr>
                 <tr>
-                    <td style="background-color:#F3CF3E;">3</td>
+                    <td style="background-color:#FFEA00;">3</td>
                     <td>{</td>
                     <td>h1 = h1 - 1</td>
                 </tr>
@@ -179,7 +179,7 @@
                     <td>if (tape[h0] == 0): jump forwards to matching ] command.</td>
                 </tr>
                 <tr>
-                    <td style="background-color:#AE7AC4;">10</td>
+                    <td style="background-color:#ff69b4;">10</td>
                     <td>]</td>
                     <td>if (tape[h0] != 0): jump backwards to matching [ command.</td>
                 </tr>
@@ -196,6 +196,16 @@
                 <tr>
                     <td>11 to 36</td>
                     <td>A to Z</td>
+                    <td>Used to store memory</td>
+                </tr>
+                <tr>
+                    <td>-36></td>
+                    <td>&</td>
+                    <td>Used to store memory</td>
+                </tr>
+                <tr>
+                    <td>36&lt</td>
+                    <td>%</td>
                     <td>Used to store memory</td>
                 </tr>
             </table>

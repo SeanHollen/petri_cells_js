@@ -28,14 +28,14 @@ class GridController {
       0: "#F0F2F3", // white
       1: "#E64C3C", // red
       2: "#F29B11", // orange
-      3: "#F3CF3E", // yellow
+      3: "#FFEA00", // yellow
       4: "#7A3E00", // brown
       5: "#145A32", // green
       6: "#90EE90", // light green
       7: "#1A5276", // blue
       8: "#A3E4D7", // cyan
       9: "#8E44AD", // purple
-      10: "#AE7AC4", // pink
+      10: "#FF69B4", // pink
     };
   }
 
@@ -105,6 +105,7 @@ class GridController {
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
 
     const updatesSet = {};
     for (let i = 0; i < 64; i++) {
@@ -118,11 +119,13 @@ class GridController {
       updatesSet[color].push(updates);
     }
     Object.keys(updatesSet).forEach((color) => {
+      ctx.beginPath();
       ctx.fillStyle = color;
       updatesSet[color].forEach((update) => {
         const [rec_x, rec_y] = update;
-        ctx.fillRect(rec_x, rec_y, 4, 4);
+        ctx.rect(rec_x, rec_y, 4, 4);
       });
+      ctx.fill()
     });
 
     const cellClickEventListener = this.getCellClickEventListener(
@@ -207,7 +210,7 @@ class GridController {
     }
     document.getElementById(
       "step-counter"
-    ).textContent = `Step: ${this.stepCount}`;
+    ).textContent = `Epoch: ${this.stepCount}`;
   }
 
   stopRunning(button) {
@@ -231,9 +234,7 @@ class GridController {
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
       grid = this.updateGridState(grid, range);
-      let time = new Date();
       this.updateGridUI(grid, cells);
-      //   console.log(`${new Date() - time} milliseconds to update ui`);
     }, 1000 / speed);
   }
 
@@ -253,7 +254,7 @@ class GridController {
 
   exitCellEditMode() {
     document.getElementById("copy-icon").style.display = "inline-block";
-    document.getElementById("cell-details-1").style.display = "inline-block";
+    document.getElementById("cell-details-1").style.display = "block";
     document.getElementById("cell-details-edit-button").style.display = "block";
     document.getElementById("cancel-button").style.display = "none";
     document.getElementById("cell-details-1-edit-form").style.display = "none";
