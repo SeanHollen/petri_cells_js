@@ -53,13 +53,27 @@
             </div>
         </div>
         <div id="life-board">
+            <div id="step-counter">Step: 0</div>
+            <div id="grid-container"></div>
             <script type="module" src="visualizeBoard.js"></script>
         </div>
         <div id="cell-details" class="cell-details">
             <div id="cell-details-1"></div>
+            <form id="cell-details-1-edit-form" class="cell-details-edit-form" style="display:none;">
+                <input id="cell-details-1-edit-input" style="width:500px; display: inline" name="cell-details-1-edit-input" class="cell-details-1-edit-input"
+                    required>
+                <button id="cell-details-1-edit-submit" form="cell-details-1-edit-form" style="display: inline;">Update</button>
+            </form>
             <div id="cell-details-2" style="display:inline-block"></div>
             <div id="copy-icon" class="copy-icon" style="display:inline-block" title="Copy to clipboard"></div>
             <div id="copy-icon-validation" style="display:none;">copied</div>
+            <form id="cell-details-2-edit-form" class="cell-details-edit-form" style="display:none;">
+                <input id="cell-details-2-edit-input" style="width:500px; display: inline" name="cell-details-2-edit-input" class="cell-details-2-edit-input"
+                    required>
+                <button id="cell-details-2-edit-submit" form="cell-details-2-edit-form" style="display: inline;">Update</button>
+            </form>
+            <button class="cell-details-edit-button" id="cell-details-edit-button">Edit</button>
+            <button class="cancel-button" id="cancel-button" style="display:none">Cancel</button>
         </div>
     </div>
     <hr class="divider">
@@ -145,7 +159,7 @@
                     <td>tape[h0] = tape[h0] - 1</td>
                 </tr>
                 <tr>
-                    <td style="background-color:#A2D9CD;">6</td>
+                    <td style="background-color:#90EE90;">6</td>
                     <td>+</td>
                     <td>tape[h0] = tape[h0] + 1</td>
                 </tr>

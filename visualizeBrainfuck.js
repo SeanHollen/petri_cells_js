@@ -201,6 +201,8 @@ class BrainfuckExecutor {
     this.tapeLabel.style.display = "none"
     this.tapeForm.style.display = "inline-flex"
     this.tapeInput.value = text;
+    // select the input and highligh text
+    this.tapeInput.select();
   }
 
   acceptInput(text) {
@@ -213,7 +215,7 @@ class BrainfuckExecutor {
       }
     }
     const textNoWhitespace = text.replace(/\s+/g, '');
-    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]]+$/.test(textNoWhitespace)
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(textNoWhitespace)
     if (isHrBfFormat) {
       return fromHumanReadableStr(text)
     }
@@ -248,22 +250,24 @@ function addEventListener(id, action) {
   // so I check e.screenX to register whether it was an actual click,
   // and differentiate between mouse clicks and button clicks that way.
   document.getElementById(id).addEventListener("mousedown", (e) => {
+    e.preventDefault();
     if (e.screenX) {
       action()
     }
   });
   document.getElementById(id).addEventListener("click", (e) => {
+    e.preventDefault();
     if (!e.screenX) {
       action()
     }
   });
-  document.getElementById(id).addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight") {
-      // document.getElementById("bf-step-button").click();
-    } else if (e.key === "ArrowLeft") {
-      // document.getElementById("bf-back-button").click();
-    }
-  });
+  // document.getElementById(id).addEventListener("keydown", (e) => {
+  //   if (e.key === "ArrowRight") {
+  //     document.getElementById("bf-step-button").click();
+  //   } else if (e.key === "ArrowLeft") {
+  //     document.getElementById("bf-back-button").click();
+  //   }
+  // });
 }
 
 addEventListener("bf-step-button", () => {
@@ -277,20 +281,19 @@ addEventListener("bf-run-button", () => {
 addEventListener("bf-restart-button", () => {
   contentController.startup();
 });
-addEventListener("bf-edit-button", () => {
-  contentController.openEditTapeForm();
-});
 addEventListener("bf-back-button", () => {
   contentController.backState();
   contentController.updateContent();
 });
+addEventListener("bf-edit-button", () => {
+  contentController.openEditTapeForm();
+});
 addEventListener("edit-tape-form", () => {
-  event.preventDefault(); // prevents page from refreshing
   contentController.editTapeCloseForm();
 });
-document.getElementById("tape-form").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault(); // prevents page from refreshing
+document.getElementById("tape-form").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
     contentController.editTapeCloseForm();
   } 
 });

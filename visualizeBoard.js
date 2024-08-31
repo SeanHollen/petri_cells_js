@@ -11,9 +11,18 @@ window.fromHumanReadableStr = fromHumanReadableStr;
 
 class GridController {
   constructor() {
+    this.lastSelected = {
+      cell: null,
+      program: null,
+      x: null,
+      y: null,
+    };
     this.copyIconEventListener = (e) => {
-        navigator.clipboard.writeText(toHumanReadableStr(this.lastSelectedProgram));
-        document.getElementById("copy-icon-validation").style.display = "inline-block";
+      navigator.clipboard.writeText(
+        toHumanReadableStr(this.lastSelected.program)
+      );
+      document.getElementById("copy-icon-validation").style.display =
+        "inline-block";
     };
     this.colorMapping = {
       0: "#F0F2F3", // white
@@ -22,7 +31,7 @@ class GridController {
       3: "#F3CF3E", // yellow
       4: "#7A3E00", // brown
       5: "#145A32", // green
-      6: "#A2D9CD", // light green
+      6: "#90EE90", // light green
       7: "#1A5276", // blue
       8: "#A3E4D7", // cyan
       9: "#8E44AD", // purple
@@ -43,11 +52,53 @@ class GridController {
     }
   }
 
+  toColoredFormat(program) {
+    const asHrString = toHumanReadableStr(program);
+    const asChars = asHrString.split("");
+    return program
+      .map((num, index) => {
+        const color = this.intToColor(num);
+        // don't change the spacing, because it will effect the UI spacing
+        return `<div 
+                class="char-instruction" 
+                style="background-color:${color};"
+            >${asChars[index]}</div>`;
+      })
+      .join("");
+  }
+
+  getCellClickEventListener(program, cellElement, { x, y }) {
+    const controller = this;
+    return function (e) {
+      controller.exitCellEditMode();
+      const lastSelected = controller.lastSelected;
+      lastSelected.x = x;
+      lastSelected.y = y;
+      if (lastSelected.program) {
+        lastSelected.cell.style.border = "none";
+        document.getElementById("cell-details").style.display = "none";
+        document.getElementById("copy-icon-validation").style.display = "none";
+        if (program == lastSelected.program) {
+          lastSelected.program = null;
+          return;
+        }
+      }
+      lastSelected.program = program;
+      lastSelected.cell = cellElement;
+
+      document.getElementById("cell-details").style.display = "inline-block";
+      document.getElementById("cell-details-1").innerText = program.join(",");
+      document.getElementById("cell-details-2").innerHTML =
+        controller.toColoredFormat(program);
+      cellElement.style.border = "3px solid black";
+    };
+  }
+
   visualizeProgram(program, cellElement, x, y) {
     if (!cellElement) return;
 
     const canvas = document.createElement("canvas");
-    const previousCanvas = cellElement.getElementsByTagName("canvas")[0];
+    // const previousCanvas = cellElement.getElementsByTagName("canvas")[0];
     canvas.id = `${x}_${y}`;
     canvas.width = 32;
     canvas.height = 32;
@@ -57,10 +108,10 @@ class GridController {
 
     const updatesSet = {};
     for (let i = 0; i < 64; i++) {
-      const x = (i % 8) * 4;
-      const y = Math.floor(i / 8) * 4;
+      let rec_x = (i % 8) * 4;
+      let rec_y = Math.floor(i / 8) * 4;
       const color = this.intToColor(program[i]);
-      const updates = [x, y];
+      const updates = [rec_x, rec_y];
       if (!updatesSet[color]) {
         updatesSet[color] = [];
       }
@@ -69,42 +120,16 @@ class GridController {
     Object.keys(updatesSet).forEach((color) => {
       ctx.fillStyle = color;
       updatesSet[color].forEach((update) => {
-        [x, y] = update;
-        ctx.fillRect(x, y, 4, 4);
+        const [rec_x, rec_y] = update;
+        ctx.fillRect(rec_x, rec_y, 4, 4);
       });
     });
 
-    const cellClickEventListener = (e) => {
-      if (this.lastSelectedProgram) {
-        this.lastSelectedCellElement.style.border = "none";
-        document.getElementById("cell-details").style.display = "none";
-        document.getElementById("copy-icon-validation").style.display = "none";
-        if (program == this.lastSelectedProgram) {
-            this.lastSelectedProgram = null;
-            return;
-        }
-      }
-      this.lastSelectedProgram = program;
-      this.lastSelectedCellElement = cellElement;
-
-      document.getElementById("cell-details").style.display = "inline-block";
-      const cellDetails1 = document.getElementById("cell-details-1");
-      const cellDetails2 = document.getElementById("cell-details-2");
-
-      const asNumbers = program.join(",");
-      cellDetails1.innerText = asNumbers;
-      const asHrString = toHumanReadableStr(program);
-      const asChars = asHrString.split("");
-      const asColorsHtml = program
-        .map((num, index) => {
-          return `<div class="char-instruction" style="background-color:${this.intToColor(
-            num
-          )};">${asChars[index]}</div>`;
-        })
-        .join("");
-      cellDetails2.innerHTML = asColorsHtml;
-      cellElement.style.border = "3px solid black";
-    };
+    const cellClickEventListener = this.getCellClickEventListener(
+      program,
+      cellElement,
+      { x, y }
+    );
     canvas.addEventListener("click", cellClickEventListener);
 
     document
@@ -124,16 +149,8 @@ class GridController {
   }
 
   initGridUI(width, height) {
-    const container = document.getElementById("life-board");
+    const container = document.getElementById("grid-container");
     container.innerHTML = "";
-
-    const stepCounter = document.createElement("div");
-
-    stepCounter.textContent = `Step: 0`;
-    stepCounter.id = "stepCounter";
-    stepCounter.style.fontSize = "18px";
-    stepCounter.style.marginBottom = "10px";
-    container.appendChild(stepCounter);
 
     const grid = document.createElement("div");
     grid.style.display = "grid";
@@ -159,8 +176,12 @@ class GridController {
 
     for (let i = 0; i < height; i++) {
       for (let j = 0; j < width; j++) {
-        const x2 = (i + Math.floor(Math.random() * (2 * range + 1)) - range + height) % height;
-        const y2 = (j + Math.floor(Math.random() * (2 * range + 1)) - range + width) % width;
+        const x2 =
+          (i + Math.floor(Math.random() * (2 * range + 1)) - range + height) %
+          height;
+        const y2 =
+          (j + Math.floor(Math.random() * (2 * range + 1)) - range + width) %
+          width;
         const [newProgram1, newProgram2] = crossReactPrograms(
           grid[i][j],
           grid[x2][y2]
@@ -179,13 +200,13 @@ class GridController {
         this.visualizeProgram(
           grid[i][j],
           cells[i * grid[i].length + j],
-          j,
-          grid.length - i - 1
+          i,
+          j
         );
       }
     }
     document.getElementById(
-      "stepCounter"
+      "step-counter"
     ).textContent = `Step: ${this.stepCount}`;
   }
 
@@ -212,8 +233,64 @@ class GridController {
       grid = this.updateGridState(grid, range);
       let time = new Date();
       this.updateGridUI(grid, cells);
-    //   console.log(`${new Date() - time} milliseconds to update ui`);
+      //   console.log(`${new Date() - time} milliseconds to update ui`);
     }, 1000 / speed);
+  }
+
+  enterCellEditMode() {
+    document.getElementById("copy-icon").style.display = "none";
+    document.getElementById("cell-details-1").style.display = "none";
+    document.getElementById("cell-details-edit-button").style.display = "none";
+    document.getElementById("cancel-button").style.display = "block";
+    document.getElementById("cell-details-1-edit-form").style.display = "inline-flex";
+    document.getElementById("cell-details-2").style.display = "none";
+    document.getElementById("cell-details-2-edit-form").style.display = "inline-flex";
+    const numInput = document.getElementById("cell-details-1-edit-input");
+    const colorsInput = document.getElementById("cell-details-2-edit-input");
+    numInput.value = this.lastSelected.program.join(",");
+    colorsInput.value = toHumanReadableStr(this.lastSelected.program);
+  }
+
+  exitCellEditMode() {
+    document.getElementById("copy-icon").style.display = "inline-block";
+    document.getElementById("cell-details-1").style.display = "inline-block";
+    document.getElementById("cell-details-edit-button").style.display = "block";
+    document.getElementById("cancel-button").style.display = "none";
+    document.getElementById("cell-details-1-edit-form").style.display = "none";
+    document.getElementById("cell-details-2").style.display = "inline-block";
+    document.getElementById("cell-details-2-edit-form").style.display = "none";
+  }
+
+  editProgramWithNumsForm(grid) {
+    const inputVal = document.getElementById("cell-details-1-edit-input").value;
+    const isIntegerFormat = /^[,\-\d]+$/.test(inputVal)
+    if (!isIntegerFormat) return;
+    const intArr = inputVal.split(",").map(num => parseInt(num));
+    const validValues = intArr.every((i) => !isNaN(i) && i !== null && i !== undefined);
+    if (!validValues) return;
+    this.submitProgram(intArr, grid);
+  }
+
+  editProgramWithColorsForm(grid) {
+    const inputVal = document.getElementById("cell-details-2-edit-input").value;
+    const textNoWhitespace = inputVal.replace(/\s+/g, '');
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(textNoWhitespace)
+    if (!isHrBfFormat) return;
+    const intArr = fromHumanReadableStr(textNoWhitespace);
+    this.submitProgram(intArr, grid);
+  }
+
+  submitProgram(program, grid) {
+    program = program.slice(0, 64)
+    while (program.length < 64) program.push(0);
+    this.lastSelected.program = program;
+    document.getElementById("cell-details-1").innerText = program.join(",");
+    document.getElementById("cell-details-2").innerHTML = this.toColoredFormat(program);
+    const x = this.lastSelected.x;
+    const y = this.lastSelected.y;
+    grid[x][y] = program;
+    this.exitCellEditMode();
+    this.visualizeProgram(program, this.lastSelected.cell, x, y);
   }
 }
 
@@ -233,11 +310,13 @@ function addEventListener(id, action) {
   // so I check e.screenX to register whether it was an actual click,
   // and differentiate between mouse clicks and button clicks that way.
   document.getElementById(id).addEventListener("mousedown", (e) => {
+    e.preventDefault();
     if (e.screenX) {
       action();
     }
   });
   document.getElementById(id).addEventListener("click", (e) => {
+    e.preventDefault();
     if (!e.screenX) {
       action();
     }
@@ -263,4 +342,30 @@ addEventListener("board-restart-button", () => {
   grid = contentController.initGridState(width, height);
   contentController.updateGridUI(grid, cells);
   contentController.stopRunning(runButton);
+});
+
+
+addEventListener("cell-details-edit-button", () => {
+  contentController.enterCellEditMode()
+});
+addEventListener("cancel-button", () => {
+  contentController.exitCellEditMode();
+});
+document.getElementById("cell-details-1-edit-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      contentController.editProgramWithNumsForm(grid);
+    }
+  });
+document.getElementById("cell-details-2-edit-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    contentController.editProgramWithColorsForm(grid);
+  }
+});
+addEventListener("cell-details-1-edit-submit", () => {
+    contentController.editProgramWithNumsForm(grid);
+  });
+addEventListener("cell-details-2-edit-submit", () => {
+  contentController.editProgramWithColorsForm(grid);
 });
