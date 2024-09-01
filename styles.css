@@ -7,8 +7,10 @@ body {
     padding-bottom: 50px;
 }
 
-#step-counter {
+.state-data {
+    display: inline-block;
     font-size: 18px;
+    padding-right: 10px;
     margin-bottom: 10px;
 }
 

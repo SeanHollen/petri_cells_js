@@ -19,10 +19,11 @@
                     self-replicating programs can emerge spontaneously from cellular autonoma.
                     I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak" target=”_blank”>this</a>
                     Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
-                    True "life" only emerges occasionally, so run 10+ times (and get lucky).
+                    Runaway "life" only emerges occasionally, so run 10+ times (and get lucky).
                 </p>
                 <div>
                     <div class="controls">
+                        <button class="control-item" id="board-back-button">Back</button>
                         <button class="control-item" id="board-step-button">Step</button>
                         <button class="control-item" id="board-run-button">Run</button>
                         <button class="control-item" id="board-restart-button">New</button>
@@ -53,7 +54,11 @@
             </div>
         </div>
         <div id="life-board">
-            <div id="step-counter">Epoch: 0</div>
+            <div clas="state-data-header">
+                <div id="step-counter" class="state-data">Epoch: 0</div>
+                <div id="unique-cells" class="state-data">Unique Cells: 0</div>
+            </div>
+            
             <div id="grid-container"></div>
             <script type="module" src="visualizeBoard.js"></script>
         </div>

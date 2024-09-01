@@ -9,20 +9,63 @@ window.randomProgram = randomProgram;
 window.toHumanReadableStr = toHumanReadableStr;
 window.fromHumanReadableStr = fromHumanReadableStr;
 
+class HistoryManager {
+  init(fidelity, initialState) {
+    this.fidelity = fidelity;
+    this.initialState = {
+      ...initialState,
+      grid: this.deepCopy(initialState.grid),
+    };
+    this.history = [];
+    return this;
+  }
+
+  deepCopy(grid) {
+    const deepCopy = [];
+    grid.forEach((row) => {
+      const newRow = row.map((cell) => {
+        return [...cell];
+      });
+      deepCopy.push(newRow);
+    });
+    return deepCopy;
+  }
+
+  addState(state) {
+    if (state.epoch % this.fidelity != 0) return;
+    const historyIsAhead =
+      this.history.length > 0 &&
+      this.history[this.history.length - 1].epoch > state.epoch;
+    if (historyIsAhead) return;
+    this.history.push(state);
+  }
+
+  // private
+  getStoredState(epoch) {
+    let pointer = this.history.length - 1;
+    if (this.history.length == 0) return this.initialState;
+    while (pointer >= 0 && this.history[pointer].epoch > epoch) {
+      pointer--;
+    }
+    return pointer < 0 ? this.initialState : this.history[pointer];
+  }
+
+  getState(epoch, getNextStateFunc) {
+    let state = this.getStoredState(epoch);
+    while (state.epoch < epoch) {
+      state = getNextStateFunc(state);
+      this.history.push(state);
+    }
+    return state;
+  }
+}
+
 class GridController {
   constructor() {
     this.lastSelected = {
-      cell: null,
+      cellUI: null,
       program: null,
-      x: null,
-      y: null,
-    };
-    this.copyIconEventListener = (e) => {
-      navigator.clipboard.writeText(
-        toHumanReadableStr(this.lastSelected.program)
-      );
-      document.getElementById("copy-icon-validation").style.display =
-        "inline-block";
+      pos: null,
     };
     this.colorMapping = {
       0: "#F0F2F3", // white
@@ -67,15 +110,25 @@ class GridController {
       .join("");
   }
 
-  getCellClickEventListener(program, cellElement, { x, y }) {
+  countUniqueCells(grid) {
+    const set = new Set();
+    grid.forEach((row) => {
+      row.forEach((cell) => {
+        const stringified = JSON.stringify(cell);
+        set.add(stringified);
+      });
+    });
+    return set.size;
+  }
+
+  getCellClickEventListener(program, cellUI, pos) {
     const controller = this;
     return function (e) {
       controller.exitCellEditMode();
       const lastSelected = controller.lastSelected;
-      lastSelected.x = x;
-      lastSelected.y = y;
+      lastSelected.pos = pos;
       if (lastSelected.program) {
-        lastSelected.cell.style.border = "none";
+        lastSelected.cellUI.cellDiv.style.border = "none";
         document.getElementById("cell-details").style.display = "none";
         document.getElementById("copy-icon-validation").style.display = "none";
         if (program == lastSelected.program) {
@@ -84,21 +137,19 @@ class GridController {
         }
       }
       lastSelected.program = program;
-      lastSelected.cell = cellElement;
+      lastSelected.cellUI = cellUI;
 
       document.getElementById("cell-details").style.display = "inline-block";
       document.getElementById("cell-details-1").innerText = program.join(",");
       document.getElementById("cell-details-2").innerHTML =
         controller.toColoredFormat(program);
-      cellElement.style.border = "3px solid black";
+      cellUI.cellDiv.style.border = "3px solid black";
     };
   }
 
-  visualizeProgram(program, cellElement, x, y) {
-    if (!cellElement) return;
-
+  makeCanvas(cellDiv, { x, y }) {
+    if (!cellDiv) return;
     const canvas = document.createElement("canvas");
-    // const previousCanvas = cellElement.getElementsByTagName("canvas")[0];
     canvas.id = `${x}_${y}`;
     canvas.width = 32;
     canvas.height = 32;
@@ -106,9 +157,17 @@ class GridController {
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
+    cellDiv.appendChild(canvas);
+    return { canvas, ctx, cellDiv };
+  }
 
+  updateCellUI(program, prevProgram, cellUI, { x, y }) {
+    const { canvas, ctx, eventListener } = cellUI;
     const updatesSet = {};
     for (let i = 0; i < 64; i++) {
+      if (prevProgram && program[i] === prevProgram[i]) {
+        continue;
+      }
       let rec_x = (i % 8) * 4;
       let rec_y = Math.floor(i / 8) * 4;
       const color = this.intToColor(program[i]);
@@ -125,92 +184,118 @@ class GridController {
         const [rec_x, rec_y] = update;
         ctx.rect(rec_x, rec_y, 4, 4);
       });
-      ctx.fill()
+      ctx.fill();
     });
 
-    const cellClickEventListener = this.getCellClickEventListener(
-      program,
-      cellElement,
-      { x, y }
-    );
-    canvas.addEventListener("click", cellClickEventListener);
-
-    document
-      .getElementById("copy-icon")
-      .addEventListener("click", this.copyIconEventListener);
-
-    cellElement.innerHTML = "";
-    cellElement.appendChild(canvas);
+    if (eventListener) {
+      canvas.removeEventListener("click", eventListener);
+    }
+    const newEventListener = this.getCellClickEventListener(program, cellUI, {
+      x,
+      y,
+    });
+    canvas.addEventListener("click", newEventListener);
+    cellUI.eventListener = newEventListener;
   }
 
-  initGridState(width, height) {
+  initState(width, height) {
     this.isRunning = false;
-    this.stepCount = 0;
-    return Array.from({ length: height }, () =>
+    const epoch = 0;
+    const grid = Array.from({ length: height }, () =>
       Array.from({ length: width }, () => randomProgram())
     );
+    const uniqueCells = this.countUniqueCells(grid);
+    return { epoch, uniqueCells, grid };
   }
 
   initGridUI(width, height) {
+    document.getElementById("copy-icon").addEventListener("click", (e) => {
+      navigator.clipboard.writeText(
+        toHumanReadableStr(this.lastSelected.program)
+      );
+      document.getElementById("copy-icon-validation").style.display =
+        "inline-block";
+    });
     const container = document.getElementById("grid-container");
     container.innerHTML = "";
-
     const grid = document.createElement("div");
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = `repeat(${width}, 3.5vmin)`;
     grid.style.gridTemplateRows = `repeat(${height}, 3.5vmin)`;
     grid.style.gap = ".4vmin";
     container.appendChild(grid);
-    const cells = [];
-    for (let i = 0; i < width * height; i++) {
-      const cell = document.createElement("div");
-      cell.style.backgroundColor = "#fff";
-      cell.style.cursor = "pointer";
-      grid.appendChild(cell);
-      cells.push(cell);
+    const uiItems = [];
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const cell = document.createElement("div");
+        cell.style.backgroundColor = "#fff";
+        cell.style.cursor = "pointer";
+        grid.appendChild(cell);
+        let cellUI = this.makeCanvas(cell, { x, y });
+        uiItems.push(cellUI);
+      }
     }
-    return cells;
+    return uiItems;
   }
 
-  updateGridState(grid, range) {
-    this.stepCount++;
+  deepCopy(grid) {
+    const deepCopy = [];
+    grid.forEach((row) => {
+      const newRow = row.map((cell) => {
+        return [...cell];
+      });
+      deepCopy.push(newRow);
+    });
+    return deepCopy;
+  }
+
+  updateState(state, range) {
+    const grid = this.deepCopy(state.grid);
     const height = grid.length;
     const width = grid[0].length;
 
-    for (let i = 0; i < height; i++) {
-      for (let j = 0; j < width; j++) {
-        const x2 =
-          (i + Math.floor(Math.random() * (2 * range + 1)) - range + height) %
-          height;
-        const y2 =
-          (j + Math.floor(Math.random() * (2 * range + 1)) - range + width) %
-          width;
-        const [newProgram1, newProgram2] = crossReactPrograms(
-          grid[i][j],
+    for (let x = 0; x < height; x++) {
+      for (let y = 0; y < width; y++) {
+        let xOff = Math.floor(Math.random() * (2 * range + 1)) - range;
+        let x2 = (x + xOff + height) % height;
+        let yOff = Math.floor(Math.random() * (2 * range + 1)) - range;
+        let y2 = (y + yOff + width) % width;
+        let [newProgram1, newProgram2] = crossReactPrograms(
+          grid[x][y],
           grid[x2][y2]
         );
-        grid[i][j] = newProgram1;
+        grid[x][y] = newProgram1;
         grid[x2][y2] = newProgram2;
       }
     }
-
-    return grid;
+    return {
+      epoch: state.epoch + 1,
+      uniqueCells: this.countUniqueCells(state.grid),
+      previousGrid: state.grid,
+      grid: grid,
+    };
   }
 
-  updateGridUI(grid, cells) {
-    for (let i = 0; i < grid.length; i++) {
-      for (let j = 0; j < grid[i].length; j++) {
-        this.visualizeProgram(
-          grid[i][j],
-          cells[i * grid[i].length + j],
-          i,
-          j
-        );
+  backState(history, state, range) {
+    return history.getState(state.epoch - 1, (state) => {
+      return this.updateState(state, range);
+    });
+  }
+
+  updateGridUI({ state, uiItems }) {
+    const { epoch, uniqueCells, grid, previousGrid } = state;
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        let program = grid[x][y];
+        let prevProgram = previousGrid ? previousGrid[x][y] : null;
+        let cellUI = uiItems[x * grid[x].length + y];
+        this.updateCellUI(program, prevProgram, cellUI, { x, y });
       }
     }
+    document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
-      "step-counter"
-    ).textContent = `Epoch: ${this.stepCount}`;
+      "unique-cells"
+    ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
   stopRunning(button) {
@@ -219,13 +304,15 @@ class GridController {
     clearInterval(this.runInterval);
   }
 
-  toggleRun(button, grid, cells) {
+  toggleRun(button, store, history) {
     if (this.running) {
       this.stopRunning(button);
       return;
     }
     const speedForm = document.getElementById("grid-speed")[0];
     const speed = parseFloat(speedForm.value);
+    this.runningBackwards = speed < 0;
+    if (this.runnningsBackward) speed *= -1;
 
     const rangeForm = document.getElementById("grid-range")[0];
     const range = parseFloat(rangeForm.value);
@@ -233,19 +320,30 @@ class GridController {
     this.running = true;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      grid = this.updateGridState(grid, range);
-      this.updateGridUI(grid, cells);
+      if (this.runningBackwards) {
+        const newState = this.backState(history, store.state, range);
+        Object.assign(store.state, newState);
+      } else if (speed > 0) {
+        store.state = this.updateState(store.state, range);
+        history.addState(store.state);
+      }
+      this.updateGridUI(store);
     }, 1000 / speed);
   }
 
   enterCellEditMode() {
-    document.getElementById("copy-icon").style.display = "none";
-    document.getElementById("cell-details-1").style.display = "none";
-    document.getElementById("cell-details-edit-button").style.display = "none";
-    document.getElementById("cancel-button").style.display = "block";
-    document.getElementById("cell-details-1-edit-form").style.display = "inline-flex";
-    document.getElementById("cell-details-2").style.display = "none";
-    document.getElementById("cell-details-2-edit-form").style.display = "inline-flex";
+    const map = {
+      "copy-icon": "none",
+      "cell-details-1": "none",
+      "cell-details-edit-button": "none",
+      "cancel-button": "block",
+      "cell-details-1-edit-form": "inline-flex",
+      "cell-details-2": "none",
+      "cell-details-2-edit-form": "inline-flex",
+    };
+    Object.keys(map).forEach((selector) => {
+      document.getElementById(selector).style.display = map[selector];
+    });
     const numInput = document.getElementById("cell-details-1-edit-input");
     const colorsInput = document.getElementById("cell-details-2-edit-input");
     numInput.value = this.lastSelected.program.join(",");
@@ -253,63 +351,59 @@ class GridController {
   }
 
   exitCellEditMode() {
-    document.getElementById("copy-icon").style.display = "inline-block";
-    document.getElementById("cell-details-1").style.display = "block";
-    document.getElementById("cell-details-edit-button").style.display = "block";
-    document.getElementById("cancel-button").style.display = "none";
-    document.getElementById("cell-details-1-edit-form").style.display = "none";
-    document.getElementById("cell-details-2").style.display = "inline-block";
-    document.getElementById("cell-details-2-edit-form").style.display = "none";
+    const map = {
+      "copy-icon": "inline-block",
+      "cell-details-1": "block",
+      "cell-details-edit-button": "block",
+      "cancel-button": "none",
+      "cell-details-1-edit-form": "none",
+      "cell-details-2": "inline-block",
+      "cell-details-2-edit-form": "none",
+    };
+    Object.keys(map).forEach((selector) => {
+      document.getElementById(selector).style.display = map[selector];
+    });
   }
 
-  editProgramWithNumsForm(grid) {
+  editProgramWithNumsForm(state) {
     const inputVal = document.getElementById("cell-details-1-edit-input").value;
-    const isIntegerFormat = /^[,\-\d]+$/.test(inputVal)
+    const isIntegerFormat = /^[,\-\d]+$/.test(inputVal);
     if (!isIntegerFormat) return;
-    const intArr = inputVal.split(",").map(num => parseInt(num));
-    const validValues = intArr.every((i) => !isNaN(i) && i !== null && i !== undefined);
+    const intArr = inputVal.split(",").map((num) => parseInt(num));
+    const validValues = intArr.every(
+      (i) => !isNaN(i) && i !== null && i !== undefined
+    );
     if (!validValues) return;
-    this.submitProgram(intArr, grid);
+    this.submitProgram(intArr, state.grid);
   }
 
-  editProgramWithColorsForm(grid) {
+  editProgramWithColorsForm(state) {
     const inputVal = document.getElementById("cell-details-2-edit-input").value;
-    const textNoWhitespace = inputVal.replace(/\s+/g, '');
-    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(textNoWhitespace)
+    const textNoWhitespace = inputVal.replace(/\s+/g, "");
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
+      textNoWhitespace
+    );
     if (!isHrBfFormat) return;
     const intArr = fromHumanReadableStr(textNoWhitespace);
-    this.submitProgram(intArr, grid);
+    this.submitProgram(intArr, state.grid);
   }
 
   submitProgram(program, grid) {
-    program = program.slice(0, 64)
+    program = program.slice(0, 64);
     while (program.length < 64) program.push(0);
     this.lastSelected.program = program;
     document.getElementById("cell-details-1").innerText = program.join(",");
-    document.getElementById("cell-details-2").innerHTML = this.toColoredFormat(program);
-    const x = this.lastSelected.x;
-    const y = this.lastSelected.y;
+    document.getElementById("cell-details-2").innerHTML =
+      this.toColoredFormat(program);
+    const { x, y } = this.lastSelected.pos;
+    const prevProgram = grid[x][y];
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.visualizeProgram(program, this.lastSelected.cell, x, y);
+    this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y });
   }
 }
 
-const contentController = new GridController();
-const inputtedWidth = document.getElementById("bf-w")[0].value;
-const width = parseFloat(inputtedWidth);
-const inputtedHeight = document.getElementById("bf-h")[0].value;
-const height = parseFloat(inputtedHeight);
-let cells = contentController.initGridUI(width, height);
-let grid = contentController.initGridState(width, height);
-contentController.updateGridUI(grid, cells);
-
 function addEventListener(id, action) {
-  // I want to use mousedown rather than click, because it's more snappy
-  // but mousedown doesn't cover spacebar and enter-key presses
-  // and if I register them both, then it causes both to trigger
-  // so I check e.screenX to register whether it was an actual click,
-  // and differentiate between mouse clicks and button clicks that way.
   document.getElementById(id).addEventListener("mousedown", (e) => {
     e.preventDefault();
     if (e.screenX) {
@@ -324,49 +418,87 @@ function addEventListener(id, action) {
   });
 }
 
+const HISTORY_FIDELITY = 20;
+const inputtedWidth = document.getElementById("bf-w")[0].value;
+const width = parseFloat(inputtedWidth);
+const inputtedHeight = document.getElementById("bf-h")[0].value;
+const height = parseFloat(inputtedHeight);
+const controller = new GridController();
+const store = {
+  state: controller.initState(width, height),
+  uiItems: controller.initGridUI(width, height),
+};
+const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
+controller.updateGridUI(store);
+
 addEventListener("board-step-button", () => {
   const rangeForm = document.getElementById("grid-range")[0];
   const range = parseFloat(rangeForm.value);
-  grid = contentController.updateGridState(grid, range);
-  contentController.updateGridUI(grid, cells);
+  store.state = controller.updateState(store.state, range);
+  history.addState(store.state);
+  controller.updateGridUI(store);
+});
+addEventListener("board-back-button", () => {
+  const rangeForm = document.getElementById("grid-range")[0];
+  const range = parseFloat(rangeForm.value);
+  store.state = controller.backState(history, store.state, range);
+  controller.updateGridUI(store);
 });
 const runButton = document.getElementById("board-run-button");
 addEventListener("board-run-button", () => {
-  contentController.toggleRun(runButton, grid, cells);
+  controller.toggleRun(runButton, store, history);
 });
 addEventListener("board-restart-button", () => {
   const inputtedWidth = document.getElementById("bf-w")[0].value;
   const width = parseFloat(inputtedWidth) || 20;
   const inputtedHeight = document.getElementById("bf-h")[0].value;
   const height = parseFloat(inputtedHeight) || 20;
-  cells = contentController.initGridUI(width, height);
-  grid = contentController.initGridState(width, height);
-  contentController.updateGridUI(grid, cells);
-  contentController.stopRunning(runButton);
+  store.uiItems = controller.initGridUI(width, height);
+  store.state = controller.initState(width, height);
+  history.init(HISTORY_FIDELITY, store.state);
+  controller.updateGridUI(store);
+  controller.stopRunning(runButton);
 });
-
 
 addEventListener("cell-details-edit-button", () => {
-  contentController.enterCellEditMode()
+  controller.enterCellEditMode();
 });
 addEventListener("cancel-button", () => {
-  contentController.exitCellEditMode();
+  controller.exitCellEditMode();
 });
-document.getElementById("cell-details-1-edit-input").addEventListener("keydown", (e) => {
+document
+  .getElementById("cell-details-1-edit-input")
+  .addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      contentController.editProgramWithNumsForm(grid);
+      controller.editProgramWithNumsForm(store.state);
     }
   });
-document.getElementById("cell-details-2-edit-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    contentController.editProgramWithColorsForm(grid);
-  }
-});
-addEventListener("cell-details-1-edit-submit", () => {
-    contentController.editProgramWithNumsForm(grid);
+document
+  .getElementById("cell-details-2-edit-input")
+  .addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      controller.editProgramWithColorsForm(store.state);
+    }
   });
-addEventListener("cell-details-2-edit-submit", () => {
-  contentController.editProgramWithColorsForm(grid);
+addEventListener("cell-details-1-edit-submit", () => {
+  controller.editProgramWithNumsForm(store.state);
 });
+addEventListener("cell-details-2-edit-submit", () => {
+  controller.editProgramWithColorsForm(store.state);
+});
+
+function dumpGridStrings() {
+  const arr = [];
+  store.state.grid.forEach((row) => {
+    row.forEach((cell) => {
+      arr.push(toHumanReadableStr(cell));
+    });
+  });
+  return arr;
+}
+window.store = store;
+window.dumpGridStrings = dumpGridStrings;
+window.HistoryManager = HistoryManager;
+window.GridController = GridController;

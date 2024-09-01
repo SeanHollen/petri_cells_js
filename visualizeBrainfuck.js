@@ -1,4 +1,8 @@
-import { randomProgram, toHumanReadableStr, fromHumanReadableStr } from "./brainfuckLogic.js";
+import {
+  randomProgram,
+  toHumanReadableStr,
+  fromHumanReadableStr,
+} from "./brainfuckLogic.js";
 
 class BrainfuckExecutor {
   constructor() {
@@ -27,13 +31,13 @@ class BrainfuckExecutor {
   }
 
   initContent() {
-    this.numReadsLabel = document.getElementById("num-reads-vis")
-    this.paransLabel = document.getElementById("loop-stack-vis")
-    this.pointerLabel = document.getElementById("pointer-vis")
-    this.tapeLabel = document.getElementById("tape-vis")
-    this.tapeForm = document.getElementById("tape-form")
-    this.tapeInput = document.getElementById("tape-input")
-    this.hLabel = document.getElementById("h0-h1-vis")
+    this.numReadsLabel = document.getElementById("num-reads-vis");
+    this.paransLabel = document.getElementById("loop-stack-vis");
+    this.pointerLabel = document.getElementById("pointer-vis");
+    this.tapeLabel = document.getElementById("tape-vis");
+    this.tapeForm = document.getElementById("tape-form");
+    this.tapeInput = document.getElementById("tape-input");
+    this.hLabel = document.getElementById("h0-h1-vis");
   }
 
   updateState() {
@@ -41,14 +45,14 @@ class BrainfuckExecutor {
       this.backState();
       return;
     }
-    this.history.push(this.state)
+    this.history.push(this.state);
     this.state = this.updateStateLogic(this.state);
     this.runningBackwards = false;
   }
 
   backState() {
     if (this.history.length > 0) {
-      this.state = this.history.pop()
+      this.state = this.history.pop();
     }
   }
 
@@ -135,10 +139,7 @@ class BrainfuckExecutor {
     let h0 = this.state.head0;
     let h1 = this.state.head1;
     this.pointerLabel.innerText =
-      "" +
-      " ".repeat(pointer) +
-      "v" +
-      " ".repeat(this.tapeLength - pointer);
+      "" + " ".repeat(pointer) + "v" + " ".repeat(this.tapeLength - pointer);
 
     const addressConvert = (i) => {
       if (i === h0 && i === h1) {
@@ -151,13 +152,14 @@ class BrainfuckExecutor {
         return " ";
       }
     };
-    this.hLabel.innerText = Array.from({ length: this.tapeLength }, (_, i) => addressConvert(i)).join(
-        ""
-      );
+    this.hLabel.innerText = Array.from({ length: this.tapeLength }, (_, i) =>
+      addressConvert(i)
+    ).join("");
     let loopStack = this.state.loopStack;
-    this.paransLabel.innerText = Array.from({ length: this.tapeLength }, (_, i) =>
-        loopStack.includes(i) ? "[" : " "
-      ).join("");
+    this.paransLabel.innerText = Array.from(
+      { length: this.tapeLength },
+      (_, i) => (loopStack.includes(i) ? "[" : " ")
+    ).join("");
   }
 
   toggleRun(button) {
@@ -197,39 +199,43 @@ class BrainfuckExecutor {
   }
 
   openEditTapeForm() {
-    const text = this.tapeLabel.innerText
-    this.tapeLabel.style.display = "none"
-    this.tapeForm.style.display = "inline-flex"
+    const text = this.tapeLabel.innerText;
+    this.tapeLabel.style.display = "none";
+    this.tapeForm.style.display = "inline-flex";
     this.tapeInput.value = text;
     // select the input and highligh text
     this.tapeInput.select();
   }
 
   acceptInput(text) {
-    const isIntegerFormat = /^[,\-\d]+$/.test(text)
+    const isIntegerFormat = /^[,\-\d]+$/.test(text);
     if (isIntegerFormat) {
-      const intArr = text.split(",").map(num => parseInt(num));
-      const validValues = intArr.every((i) => !isNaN(i) && i !== null && i !== undefined);
+      const intArr = text.split(",").map((num) => parseInt(num));
+      const validValues = intArr.every(
+        (i) => !isNaN(i) && i !== null && i !== undefined
+      );
       if (validValues) {
         return intArr;
       }
     }
-    const textNoWhitespace = text.replace(/\s+/g, '');
-    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(textNoWhitespace)
+    const textNoWhitespace = text.replace(/\s+/g, "");
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
+      textNoWhitespace
+    );
     if (isHrBfFormat) {
-      return fromHumanReadableStr(text)
+      return fromHumanReadableStr(text);
     }
-    throw new Error(`${text} contains invalid characters`)
+    throw new Error(`${text} contains invalid characters`);
   }
 
   editTapeCloseForm() {
-    const text = this.tapeInput.value
-    const intArr = this.acceptInput(text)
-    const filteredText = toHumanReadableStr(intArr)
-    this.tapeLabel.style.display = "inline"
-    this.tapeForm.style.display = "none"
-    this.tapeLabel.innerText = filteredText
-    this.initState(intArr)
+    const text = this.tapeInput.value;
+    const intArr = this.acceptInput(text);
+    const filteredText = toHumanReadableStr(intArr);
+    this.tapeLabel.style.display = "inline";
+    this.tapeForm.style.display = "none";
+    this.tapeLabel.innerText = filteredText;
+    this.initState(intArr);
   }
 }
 
@@ -252,13 +258,13 @@ function addEventListener(id, action) {
   document.getElementById(id).addEventListener("mousedown", (e) => {
     e.preventDefault();
     if (e.screenX) {
-      action()
+      action();
     }
   });
   document.getElementById(id).addEventListener("click", (e) => {
     e.preventDefault();
     if (!e.screenX) {
-      action()
+      action();
     }
   });
   // document.getElementById(id).addEventListener("keydown", (e) => {
@@ -295,5 +301,5 @@ document.getElementById("tape-form").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     contentController.editTapeCloseForm();
-  } 
+  }
 });
