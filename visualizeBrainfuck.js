@@ -2,6 +2,7 @@ import {
   randomProgram,
   toHumanReadableStr,
   fromHumanReadableStr,
+  execute1Read,
 } from "./brainfuckLogic.js";
 
 class BrainfuckExecutor {
@@ -38,6 +39,7 @@ class BrainfuckExecutor {
     this.tapeForm = document.getElementById("tape-form");
     this.tapeInput = document.getElementById("tape-input");
     this.hLabel = document.getElementById("h0-h1-vis");
+    this.tapeHead = document.getElementById("tape-label");
   }
 
   updateState() {
@@ -46,7 +48,7 @@ class BrainfuckExecutor {
       return;
     }
     this.history.push(this.state);
-    this.state = this.updateStateLogic(this.state);
+    this.state = execute1Read(this.state);
     this.runningBackwards = false;
   }
 
@@ -54,76 +56,6 @@ class BrainfuckExecutor {
     if (this.history.length > 0) {
       this.state = this.history.pop();
     }
-  }
-
-  updateStateLogic(state) {
-    let { tape, pointer, head0, head1, loopStack, numReads, maxReads } = state;
-    if (pointer >= tape.length) {
-      return state;
-    }
-    numReads += 1;
-    let char = tape[pointer];
-    switch (char) {
-      case 1:
-        head0 = (head0 - 1 + tape.length) % tape.length;
-        break;
-      case 2:
-        head0 = (head0 + 1) % tape.length;
-        break;
-      case 3:
-        head1 = (head1 - 1 + tape.length) % tape.length;
-        break;
-      case 4:
-        head1 = (head1 + 1) % tape.length;
-        break;
-      case 5:
-        tape[head0] -= 1;
-        break;
-      case 6:
-        tape[head0] += 1;
-        break;
-      case 7:
-        tape[head1] = tape[head0];
-        break;
-      case 8:
-        tape[head0] = tape[head1];
-        break;
-      case 9:
-        if (tape[head0] === 0) {
-          let loopLevel = 1;
-          while (
-            loopLevel > 0 &&
-            pointer < tape.length - 1 &&
-            numReads < maxReads
-          ) {
-            numReads += 1;
-            pointer += 1;
-            if (tape[pointer] === 9) {
-              loopLevel += 1;
-            } else if (tape[pointer] === 10) {
-              loopLevel -= 1;
-            }
-          }
-        } else {
-          loopStack.push(pointer);
-        }
-        break;
-      case 10:
-        if (tape[head0] !== 0) {
-          if (loopStack.length === 0) {
-            pointer = -1;
-          } else {
-            pointer = loopStack[loopStack.length - 1];
-          }
-        } else {
-          if (loopStack.length > 0) {
-            loopStack.pop();
-          }
-        }
-        break;
-    }
-    pointer++;
-    return { tape, pointer, head0, head1, loopStack, numReads, maxReads };
   }
 
   updateContent() {
@@ -202,6 +134,7 @@ class BrainfuckExecutor {
     const text = this.tapeLabel.innerText;
     this.tapeLabel.style.display = "none";
     this.tapeForm.style.display = "inline-flex";
+    this.tapeHead.style.height = "25px"
     this.tapeInput.value = text;
     // select the input and highligh text
     this.tapeInput.select();
@@ -230,76 +163,92 @@ class BrainfuckExecutor {
 
   editTapeCloseForm() {
     const text = this.tapeInput.value;
-    const intArr = this.acceptInput(text);
+    let intArr;
+    try {
+      intArr = this.acceptInput(text);
+    } catch {
+      this.tapeInput.classList.add("error");
+      return;
+    }
+    this.tapeInput.classList.remove("error");
     const filteredText = toHumanReadableStr(intArr);
     this.tapeLabel.style.display = "inline";
     this.tapeForm.style.display = "none";
+    this.tapeHead.style.height = "19px";
     this.tapeLabel.innerText = filteredText;
     this.initState(intArr);
   }
 }
 
+// a miscellaneous interesting state
 const initialState = [
   4, 9, 5, 1, 0, 3, 3, 1, 8, 1, 2, 8, 1, 6, 0, 4, 8, 4, 6, 9, 7, 6, 6, 8, 2, 10,
   7, 10, 6, 6, 4, 10, 6, 3, 6, 9, 9, 10, 8, 3, 2, 6, 7, 6, 8, 8, 4, 1, 8, 6, 4,
   0, 3, 3, 2, 4, 4, 0, 0, 6, 7, 7, 10, 7,
 ];
 
-const contentController = new BrainfuckExecutor();
-contentController.initContent();
-contentController.startup(initialState);
+const controller = new BrainfuckExecutor();
+controller.initContent();
+controller.startup(initialState);
 
-function addEventListener(id, action) {
+function addEventListener(id, action, preventDefaults) {
   // I want to use mousedown rather than click, because it's more snappy
   // but mousedown doesn't cover spacebar and enter-key presses
   // and if I register them both, then it causes both to trigger
   // so I check e.screenX to register whether it was an actual click,
   // and differentiate between mouse clicks and button clicks that way.
   document.getElementById(id).addEventListener("mousedown", (e) => {
-    e.preventDefault();
+    if (preventDefaults) {
+      e.preventDefault();
+    }
     if (e.screenX) {
       action();
     }
   });
-  document.getElementById(id).addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!e.screenX) {
-      action();
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") {
+      document.getElementById("bf-step-button").focus()
+      stepAction();
+    } else if (e.key === "ArrowLeft") {
+      document.getElementById("bf-back-button").focus()
+      backAction();
+    } else {
+      if (preventDefaults) {
+        e.preventDefault();
+      }
+      if (!e.screenX) {
+        action();
+      }
     }
   });
-  // document.getElementById(id).addEventListener("keydown", (e) => {
-  //   if (e.key === "ArrowRight") {
-  //     document.getElementById("bf-step-button").click();
-  //   } else if (e.key === "ArrowLeft") {
-  //     document.getElementById("bf-back-button").click();
-  //   }
-  // });
 }
 
-addEventListener("bf-step-button", () => {
-  contentController.updateState();
-  contentController.updateContent();
-});
+const backAction = () => {
+  controller.backState();
+  controller.updateContent();
+};
+addEventListener("bf-back-button", backAction);
+const stepAction = () => {
+  controller.updateState();
+  controller.updateContent();
+};
+addEventListener("bf-step-button", stepAction);
 addEventListener("bf-run-button", () => {
   const runButton = document.getElementById("bf-run-button");
-  contentController.toggleRun(runButton);
+  controller.toggleRun(runButton);
 });
 addEventListener("bf-restart-button", () => {
-  contentController.startup();
-});
-addEventListener("bf-back-button", () => {
-  contentController.backState();
-  contentController.updateContent();
+  controller.startup();
 });
 addEventListener("bf-edit-button", () => {
-  contentController.openEditTapeForm();
-});
+  controller.openEditTapeForm();
+}, true);
 addEventListener("edit-tape-form", () => {
-  contentController.editTapeCloseForm();
-});
+  controller.editTapeCloseForm();
+}, true);
 document.getElementById("tape-form").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
-    contentController.editTapeCloseForm();
+    controller.editTapeCloseForm();
   }
 });

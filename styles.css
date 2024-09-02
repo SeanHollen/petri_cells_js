@@ -52,14 +52,23 @@ form {
 }
 
 .form-input {
-    width: 100px;
-    height: 21px;
     padding-top: 0;
     padding-bottom: 0;
+    height: 23px;
+    background-color: white;
+    border: 1px solid black;
 }
 
-.width-height-input {
+.small-input {
     width: 50px;
+}
+
+.medium-input {
+    width: 100px;
+}
+
+.large-input {
+    width: 400px;
 }
 
 .bf-action-section {
@@ -171,4 +180,8 @@ button:active {
 .cell-details-edit-form {
     margin-top: 4px;
     margin-bottom: 4px;
+}
+
+.error {
+    border: 1px solid red;
 }

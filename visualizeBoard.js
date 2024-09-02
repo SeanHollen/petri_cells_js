@@ -9,6 +9,45 @@ window.randomProgram = randomProgram;
 window.toHumanReadableStr = toHumanReadableStr;
 window.fromHumanReadableStr = fromHumanReadableStr;
 
+/* TYPES
+type Store: {State state, UiItems uiItems}
+type State: {int epoch, int uniqueCells, Grid previousGrid, Grid grid}
+type UiItems: CellUI[]
+type CellUI: {HTML canvas, CanvasRenderingContext2D ctx, function eventListener, HTML cellDiv}
+type LastSelected: {CellUI cellUI, Program program, Pos pos}
+type Pos: {int x, int y}
+type RunSpec: {int range, float speed, NoiseType noiseType, float(0-100) pctNoise}
+type NoiseType: enum("none", "kill-cells", "kill-instructions")
+type Grid: Program[][]
+type Program: int[64]
+*/
+
+
+class Noise {
+  static killCells(grid, spec) {
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        if (Math.random() < spec.quantileKilled) {
+          grid[x][y] = randomProgram();
+        }
+      }
+    }
+    return grid;
+  }
+
+  static killInstructions(grid, spec) {
+    const numUpdates = (grid.length * grid[0].length * 64) * spec.quantileKilled;
+    for (let i = 0; i < numUpdates; i++) {
+      const cellX = Math.floor(Math.random() * grid.length);
+      const cellY = Math.floor(Math.random() * grid[0].length);
+      const instructionIdx = Math.floor(Math.random() * 64);
+      const newInstruction = Math.floor(Math.random() * 11);
+      grid[cellX][cellY][instructionIdx] = newInstruction;
+    }
+    return grid;
+  }
+}
+
 class HistoryManager {
   init(fidelity, initialState) {
     this.fidelity = fidelity;
@@ -79,6 +118,10 @@ class GridController {
       8: "#A3E4D7", // cyan
       9: "#8E44AD", // purple
       10: "#FF69B4", // pink
+    };
+    this.noiseMapping = {
+      "kill-cells": "killCells",
+      "kill-instructions": "killInstructions",
     };
   }
 
@@ -249,8 +292,8 @@ class GridController {
     return deepCopy;
   }
 
-  updateState(state, range) {
-    const grid = this.deepCopy(state.grid);
+  updateState(state, {range, speed, noiseType, pctNoise}) {
+    let grid = this.deepCopy(state.grid);
     const height = grid.length;
     const width = grid[0].length;
 
@@ -268,6 +311,11 @@ class GridController {
         grid[x2][y2] = newProgram2;
       }
     }
+    if (this.noiseMapping[noiseType]) {
+      const funcName = this.noiseMapping[noiseType]
+      const spec = { quantileKilled: pctNoise / 100 };
+      grid = Noise[funcName](grid, spec);
+    }
     return {
       epoch: state.epoch + 1,
       uniqueCells: this.countUniqueCells(state.grid),
@@ -276,9 +324,9 @@ class GridController {
     };
   }
 
-  backState(history, state, range) {
+  backState(history, state, runSpec) {
     return history.getState(state.epoch - 1, (state) => {
-      return this.updateState(state, range);
+      return this.updateState(state, runSpec);
     });
   }
 
@@ -304,28 +352,26 @@ class GridController {
     clearInterval(this.runInterval);
   }
 
-  toggleRun(button, store, history) {
+  toggleRun(button, store, history, runSpec) {
+    const speed = runSpec.speed;
     if (this.running) {
       this.stopRunning(button);
       return;
     }
-    const speedForm = document.getElementById("grid-speed")[0];
-    const speed = parseFloat(speedForm.value);
     this.runningBackwards = speed < 0;
     if (this.runnningsBackward) speed *= -1;
-
-    const rangeForm = document.getElementById("grid-range")[0];
-    const range = parseFloat(rangeForm.value);
 
     this.running = true;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
       if (this.runningBackwards) {
-        const newState = this.backState(history, store.state, range);
+        const newState = this.backState(history, store.state, runSpec);
         Object.assign(store.state, newState);
       } else if (speed > 0) {
-        store.state = this.updateState(store.state, range);
+        store.state = this.updateState(store.state, runSpec);
         history.addState(store.state);
+      } else {
+        return;
       }
       this.updateGridUI(store);
     }, 1000 / speed);
@@ -401,19 +447,42 @@ class GridController {
     this.exitCellEditMode();
     this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y });
   }
+
+  getRunSpec() {
+    const rangeForm = document.getElementById("grid-range")[0];
+    const range = parseFloat(rangeForm.value);
+    const speedForm = document.getElementById("grid-speed")[0];
+    const speed = parseFloat(speedForm.value);
+    const noiseType = document.getElementById("noise").value;
+    const pctNoiseStr = document.getElementById("percent-noise")[0].value;
+    const pctNoise = parseFloat(pctNoiseStr.slice(0, pctNoiseStr.length - 1));
+    return {range, speed, noiseType, pctNoise};
+  }
 }
 
-function addEventListener(id, action) {
+function addEventListener(id, action, preventDefaults) {
   document.getElementById(id).addEventListener("mousedown", (e) => {
-    e.preventDefault();
+    if (preventDefaults) {
+      e.preventDefault();
+    }
     if (e.screenX) {
       action();
     }
   });
-  document.getElementById(id).addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!e.screenX) {
-      action();
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") {
+      document.getElementById("board-step-button").focus();
+      stepAction();
+    } else if (e.key === "ArrowLeft") {
+      document.getElementById("board-back-button").focus();
+      backAction();
+    } else {
+      if (preventDefaults) {
+        e.preventDefault();
+      }
+      if (!e.screenX) {
+        action();
+      }
     }
   });
 }
@@ -431,22 +500,23 @@ const store = {
 const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
 controller.updateGridUI(store);
 
-addEventListener("board-step-button", () => {
-  const rangeForm = document.getElementById("grid-range")[0];
-  const range = parseFloat(rangeForm.value);
-  store.state = controller.updateState(store.state, range);
+const backAction = () => {
+  const runSpec = controller.getRunSpec();
+  store.state = controller.backState(history, store.state, runSpec);
+  controller.updateGridUI(store);
+};
+addEventListener("board-back-button", backAction);
+const stepAction = () => {
+  const runSpec = controller.getRunSpec();
+  store.state = controller.updateState(store.state, runSpec);
   history.addState(store.state);
   controller.updateGridUI(store);
-});
-addEventListener("board-back-button", () => {
-  const rangeForm = document.getElementById("grid-range")[0];
-  const range = parseFloat(rangeForm.value);
-  store.state = controller.backState(history, store.state, range);
-  controller.updateGridUI(store);
-});
+};
+addEventListener("board-step-button", stepAction);
 const runButton = document.getElementById("board-run-button");
 addEventListener("board-run-button", () => {
-  controller.toggleRun(runButton, store, history);
+  const runSpec = controller.getRunSpec();
+  controller.toggleRun(runButton, store, history, runSpec);
 });
 addEventListener("board-restart-button", () => {
   const inputtedWidth = document.getElementById("bf-w")[0].value;
