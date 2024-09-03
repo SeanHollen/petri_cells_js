@@ -8,12 +8,17 @@ function formatNumber(input) {
   input.value = `${value}`;
 }
 
-function clickNoiseOption(value) {
+function clickNoiseOption(selectedElement) {
+  const value = selectedElement.value;
   const pctNoiseForm = document.getElementById("percent-noise");
-
-  if (value === 0) {
+  const pctNoiseInput = document.getElementById("percent-noise-input");
+  if (value === "none") {
     pctNoiseForm.style.display = "none";
-  } else if (value === 1 || value === 2) {
+  } else if (value === "kill-cells") {
     pctNoiseForm.style.display = "block";
+    pctNoiseInput.value = "3%";
+  } else if (value === "kill-instructions") {
+    pctNoiseForm.style.display = "block";
+    pctNoiseInput.value = "0.2%";
   }
 }

@@ -55,14 +55,14 @@
                         </form>
                         <form class="control-item form-item" style="padding-right: 0px;">
                             <label for="noise">Noise:</label>
-                            <select name="nosie" class="form-input" style="height: 25px;" id="noise">
-                                <option value="none" onclick="clickNoiseOption(0)">None</option>
-                                <option value="kill-cells" onclick="clickNoiseOption(1)">Kill cells</option>
-                                <option value="kill-instructions" onclick="clickNoiseOption(2)">Kill instructions</option>
+                            <select name="noise" class="form-input" style="height: 25px;" id="noise" onchange="clickNoiseOption(this)">
+                                <option value="none">None</option>
+                                <option value="kill-cells">Kill cells</option>
+                                <option value="kill-instructions">Kill instructions</option>
                             </select>
                         </form>
                         <form id="percent-noise" class="control-item form-item" style="display: none;">
-                            <input class="form-input small-input" value="3%" oninput="formatPercentage(this)"
+                            <input id="percent-noise-input" class="form-input small-input" value="3%" oninput="formatPercentage(this)"
                                 id="percentage" name="percentage" min="0" max="100" step="1" required>
                         </form>
                     </div>
