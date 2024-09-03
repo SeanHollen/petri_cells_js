@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>petri_cells</title>
     <link rel="stylesheet" href="styles.css">
+    <script type="module" src="brainfuckLogic.js"></script>
+    <script type="module" src="pvp.js"></script>
     <script src="inputValidation.js"></script>
 </head>
 
@@ -33,12 +35,12 @@
                     <div class="controls">
                         <form class="control-item form-item" id="bf-w">
                             <label for="bf-w">Width:</label>
-                            <input id="bf-w" name="bf-w" value="20" class="form-input small-input"
+                            <input id="bf-w" name="bf-w" value="10" class="form-input small-input"
                                 oninput="formatNumber(this)" required>
                         </form>
                         <form class="control-item form-item" id="bf-h">
                             <label for="bf-h">Height:</label>
-                            <input id="bf-h" name="bf-h" value="20" class="form-input small-input"
+                            <input id="bf-h" name="bf-h" value="10" class="form-input small-input"
                                 oninput="formatNumber(this)" required>
                         </form>
                     </div>
@@ -76,7 +78,6 @@
             </div>
 
             <div id="grid-container"></div>
-            <script type="module" src="visualizeBoard.js"></script>
         </div>
         <div id="cell-details" class="cell-details">
             <div id="cell-details-1" style="display:block;width:700px"></div>
@@ -238,3 +239,4 @@
 </body>
 
 </html>
+

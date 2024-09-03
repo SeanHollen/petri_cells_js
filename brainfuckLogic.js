@@ -144,11 +144,17 @@ function execute1Read(state) {
   return { tape, pointer, head0, head1, loopStack, numReads, maxReads };
 }
 
+// generates random values that can include both data and executable bf commands
 function randomProgram(size = 64, minInt = 0, maxInt = 10) {
   return Array.from(
     { length: size },
     () => Math.floor(Math.random() * (maxInt - minInt + 1)) + minInt
   );
+}
+
+// generates random values that can ONLY be data (it will not include executable bf commands)
+function randomData(size = 64, minInt = 11, maxInt = 255) {
+  return randomProgram(size, minInt, maxInt);
 }
 
 function toHumanReadableStr(intArr) {
@@ -164,7 +170,7 @@ function toHumanReadableStr(intArr) {
       7: ".",
       8: ",",
       9: "[",
-      10: "]",
+      10: "]"
     };
     if (_int in bfMapping) {
       return bfMapping[_int];
@@ -181,7 +187,7 @@ function toHumanReadableStr(intArr) {
     }
   }
 
-  return intArr.map((num) => intToHrChar(num)).join("");
+  return intArr.map(num => intToHrChar(num)).join("");
 }
 
 function fromHumanReadableStr(str) {
@@ -196,7 +202,7 @@ function fromHumanReadableStr(str) {
     ".": 7,
     ",": 8,
     "[": 9,
-    "]": 10,
+    "]": 10
   };
   function hrCharToInt(char) {
     if (char in hrToBfMapping) {
@@ -215,8 +221,8 @@ function fromHumanReadableStr(str) {
   }
   const allowedChars =
     "%&0123456789<>{}-+.,[]abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const charArr = str.split("").filter((c) => allowedChars.includes(c));
-  return charArr.map((c) => hrCharToInt(c));
+  const charArr = str.split("").filter(c => allowedChars.includes(c));
+  return charArr.map(c => hrCharToInt(c));
 }
 
 function crossReactPrograms(a, b) {
@@ -230,7 +236,8 @@ function crossReactPrograms(a, b) {
 export {
   crossReactPrograms,
   randomProgram,
+  randomData,
   toHumanReadableStr,
   fromHumanReadableStr,
-  execute1Read,
+  execute1Read
 };
