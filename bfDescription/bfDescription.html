@@ -1,0 +1,121 @@
+<link rel="stylesheet" href="./bfDescription/styles.css">
+<script type="module" src="./bfDescription/bfDescription.js"></script>
+<div id="bf-description">
+    Self-modifying version of <a href="https://en.wikipedia.org/wiki/Brainfuck" target=”_blank”>Brainfuck</a>
+    esoteric programming language. The program modifies itself as it executes. Each instruction
+    is described below.
+    <table id="bf-language-table">
+        <tr>
+            <th>Code</th>
+            <th class="instr">Instruction</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td style="background-color:#F0F2F3;"><div class="val">0</div>
+                <input id="input-0" style="display:none;" name="input-0" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">0</td>
+            <td>Determines whether to enter/exit loops</td>
+        </tr>
+        <tr>
+            <td style="background-color:#E64C3C;"><div class="val">1</div>
+                <input id="input-1" style="display:none;" name="input-1" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">&lt;</td>
+            <td>h0 = h0 - 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#F29B11;"><div class="val">2</div>
+                <input id="input-2" style="display:none;" name="input-2" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">></td>
+            <td>h0 = h0 + 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#FFEA00;"><div class="val">3</div>
+                <input id="input-3" style="display:none;" name="input-3" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">{</td>
+            <td>h1 = h1 - 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#7A3E00;"><div class="val">4</div>
+                <input id="input-4" style="display:none;" name="input-4" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">}</td>
+            <td>h1 = h1 + 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#145A32;"><div class="val">5</div>
+                <input id="input-5" style="display:none;" name="input-5" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">-</td>
+            <td>tape[h0] = tape[h0] - 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#90EE90;"><div class="val">6</div>
+                <input id="input-6" style="display:none;" name="input-6" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">+</td>
+            <td>tape[h0] = tape[h0] + 1</td>
+        </tr>
+        <tr>
+            <td style="background-color:#1A5276;"><div class="val">7</div>
+                <input id="input-7" style="display:none;" name="input-7" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">.</td>
+            <td>tape[h1] = tape[h0]</td>
+        </tr>
+        <tr>
+            <td style="background-color:#A3E4D7;"><div class="val">8</div>
+                <input id="input-8" style="display:none;" name="input-8" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">,</td>
+            <td>tape[h0] = tape[h1]</td>
+        </tr>
+        <tr>
+            <td style="background-color:#8E44AD;"><div class="val">9</div>
+                <input id="input-9" style="display:none;" name="input-9" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">[</td>
+            <td>if (tape[h0] == 0): jump forwards to matching ] command.</td>
+        </tr>
+        <tr>
+            <td style="background-color:#ff69b4;"><div class="val">10</div>
+                <input id="input-10" style="display:none;" name="input-10" class="form-input small-input" oninput="formatInteger(this)">
+            </td>
+            <td class="instr">]</td>
+            <td>if (tape[h0] != 0): jump backwards to matching [ command.</td>
+        </tr>
+        <tr>
+            <td>-1 to -10</td>
+            <td class="instr">1 to 10</td>
+            <td>Used to store memory</td>
+        </tr>
+        <tr>
+            <td>-11 to -36</td>
+            <td class="instr">a to z</td>
+            <td>Used to store memory</td>
+        </tr>
+        <tr>
+            <td>11 to 36</td>
+            <td class="instr">A to Z</td>
+            <td>Used to store memory</td>
+        </tr>
+        <tr>
+            <td>-36></td>
+            <td class="instr">&</td>
+            <td>Used to store memory</td>
+        </tr>
+        <tr>
+            <td>36&lt</td>
+            <td class="instr">%</td>
+            <td>Used to store memory</td>
+        </tr>
+    </table>
+    <div id="duplication-warning" style="display:none; color:red;">You cannot use one code for multiple instructions.</div>
+    <button class="control-item" id="edit-language-button">Edit</button>
+    <button class="control-item" id="save-language-button" style="display:none;">Save</button>
+    <button class="control-item" id="random-language-button">Randomize</button>
+    <button class="control-item" id="reset-language-button" style="display:none;">Reset</button>
+</div>

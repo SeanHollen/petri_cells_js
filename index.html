@@ -6,234 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>petri_cells</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="inputValidation.js"></script>
+    <script src="./shared/inputValidation.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script> 
+    $(function () {
+        var includes = $('[data-include]')
+        $.each(includes, function () {
+            var file = $(this).data('include') + '.html'
+            $(this).load(file)
+        })
+    })
+    </script> 
 </head>
 
 <body>
     <div class="section">
-        <div>
-            <div>
-                <h1>Petri Cells</h1>
-                <p>
-                    This is an implementation of the sim from
-                    <a href="https://arxiv.org/pdf/2406.19108" target=”_blank”>this paper</a> which explores how
-                    self-replicating programs can emerge spontaneously from cellular autonoma.
-                    I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak"
-                        target=”_blank”>this</a>
-                    Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
-                    Runaway "life" only emerges occasionally, so run 10+ times (and get lucky).
-                </p>
-                <div>
-                    <div class="controls">
-                        <button class="control-item" id="board-back-button">Back</button>
-                        <button class="control-item" id="board-step-button">Step</button>
-                        <button class="control-item" id="board-run-button">Run</button>
-                        <button class="control-item" id="board-restart-button">New</button>
-                    </div>
-                    <div class="controls">
-                        <form class="control-item form-item" id="bf-w">
-                            <label for="bf-w">Width:</label>
-                            <input id="bf-w" name="bf-w" value="20" class="form-input small-input"
-                                oninput="formatNumber(this)" required>
-                        </form>
-                        <form class="control-item form-item" id="bf-h">
-                            <label for="bf-h">Height:</label>
-                            <input id="bf-h" name="bf-h" value="20" class="form-input small-input"
-                                oninput="formatNumber(this)" required>
-                        </form>
-                    </div>
-                    <div class="controls">
-                        <form class="control-item form-item" id="grid-speed">
-                            <label for="grid-speed">Steps/Second:</label>
-                            <input id="grid-speed" name="grid-speed" class="form-input medium-input" value="5"
-                                oninput="formatNumber(this)" required>
-                        </form>
-                        <form class="control-item form-item" id="grid-range">
-                            <label title="Determines the 'range' for how far apart we can pair up the cells to execute against each other" for="grid-range">Spread:</label>
-                            <input id="grid-range" name="grid-range" value="2" class="form-input small-input"
-                                oninput="formatNumber(this)" required>
-                        </form>
-                        <form class="control-item form-item" style="padding-right: 0px;">
-                            <label for="noise">Noise:</label>
-                            <select name="noise" class="form-input" style="height: 25px;" id="noise" onchange="clickNoiseOption(this)">
-                                <option value="none">None</option>
-                                <option value="kill-cells">Kill cells</option>
-                                <option value="kill-instructions">Kill instructions</option>
-                            </select>
-                        </form>
-                        <form id="percent-noise" class="control-item form-item" style="display: none;">
-                            <input id="percent-noise-input" class="form-input small-input" value="3%" oninput="formatPercentage(this)"
-                                id="percentage" name="percentage" min="0" max="100" step="1" required>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="life-board">
-            <div clas="state-data-header">
-                <div id="step-counter" class="state-data">Epoch: 0</div>
-                <div id="unique-cells" class="state-data">Unique Cells: 0</div>
-            </div>
-
-            <div id="grid-container"></div>
-            <script type="module" src="visualizeBoard.js"></script>
-        </div>
-        <div id="cell-details" class="cell-details">
-            <div id="cell-details-1" style="display:block;width:700px"></div>
-            <form id="cell-details-1-edit-form" class="cell-details-edit-form" style="display:none;">
-                <input id="cell-details-1-edit-input" style="width:500px; display: inline"
-                    name="cell-details-1-edit-input" class="cell-details-1-edit-input" required>
-                <button id="cell-details-1-edit-submit" form="cell-details-1-edit-form"
-                    style="display: inline;">Update</button>
-            </form>
-            <div id="cell-details-2" style="display:inline-block"></div>
-            <div id="copy-icon" class="copy-icon" style="display:inline-block" title="Copy to clipboard"></div>
-            <div id="copy-icon-validation" style="display:none;">copied</div>
-            <form id="cell-details-2-edit-form" class="cell-details-edit-form" style="display:none;">
-                <input id="cell-details-2-edit-input" style="width:500px; display: inline"
-                    name="cell-details-2-edit-input" class="cell-details-2-edit-input" required>
-                <button id="cell-details-2-edit-submit" form="cell-details-2-edit-form"
-                    style="display: inline;">Update</button>
-            </form>
-            <button class="cell-details-edit-button" id="cell-details-edit-button">Edit</button>
-            <button class="cancel-button" id="cancel-button" style="display:none">Cancel</button>
-        </div>
+        <div data-include="./board/board"></div>
     </div>
     <hr class="divider">
     </hr>
     <div id="visualize-brainfuck" class="section">
-        <h1>Brainfuck Interpreter</h1>
-        <div>
-            <div class="controls">
-                <button class="control-item" id="bf-back-button">Back</button>
-                <button class="control-item" id="bf-step-button">Step</button>
-                <button class="control-item" id="bf-run-button">Run</button>
-                <button class="control-item" id="bf-restart-button">New</button>
-                <button class="control-item" id="bf-edit-button">Edit</button>
-            </div>
-            <div class="controls">
-                <form class="control-item form-item" id="bf-speed">
-                    <label for="bf-speed">Steps/Second:</label>
-                    <input id="bf-speed" name="bf-speed" value="5" class="form-input medium-input"
-                        oninput="formatNumber(this)" required>
-                </form>
-            </div>
-            </div">
-        </div>
-        <div id="bf-action-div">
-            <div class="bf-action-section">
-                <div id="num-reads-label">Num Reads</div>
-                <div id="loop-stack-label">Loop Stack</div>
-                <div id="pointer-label">Pointer</div>
-                <div id="tape-label">Tape</div>
-                <div id="h0h1-label">H0 and H1</div>
-            </div>
-            <div class="bf-action-section bf-action-content">
-                <div id="num-reads-vis"></div>
-                <div id="loop-stack-vis"></div>
-                <div id="pointer-vis"></div>
-                <div id="tape-vis"></div>
-                <form id="tape-form" style="display:none;">
-                    <input id="tape-input" style="display:inline;" name="tape-input" class="form-input large-input"
-                        required>
-                    <button id="edit-tape-form" form="bf-speed" wtyle="display: inline;">Save</button>
-                </form>
-                <div id="h0-h1-vis"></div>
-            </div>
-            <script type="module" src="visualizeBrainfuck.js"></script>
-        </div>
-        <div id="bf-description">
-            Self-modifying version of <a href="https://en.wikipedia.org/wiki/Brainfuck">Brainfuck</a>
-            esoteric programming language. The program modifies itself as it executes. Each instruction
-            is described below.
-            <table>
-                <tr>
-                    <th>Code</th>
-                    <th>Instruction</th>
-                    <th>Description</th>
-                </tr>
-                <tr>
-                    <td style="background-color:#F0F2F3;">0</td>
-                    <td>0</td>
-                    <td>Determines whether to enter/exit loops</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#E64C3C;">1</td>
-                    <td>&lt;</td>
-                    <td>h0 = h0 - 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#F29B11;">2</td>
-                    <td>></td>
-                    <td>h0 = h0 + 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#FFEA00;">3</td>
-                    <td>{</td>
-                    <td>h1 = h1 - 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#7A3E00;">4</td>
-                    <td>}</td>
-                    <td>h1 = h1 + 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#145A32;">5</td>
-                    <td>-</td>
-                    <td>tape[h0] = tape[h0] - 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#90EE90;">6</td>
-                    <td>+</td>
-                    <td>tape[h0] = tape[h0] + 1</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#1A5276;">7</td>
-                    <td>.</td>
-                    <td>tape[h1] = tape[h0]</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#A3E4D7;">8</td>
-                    <td>,</td>
-                    <td>tape[h0] = tape[h1]</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#8E44AD;">9</td>
-                    <td>[</td>
-                    <td>if (tape[h0] == 0): jump forwards to matching ] command.</td>
-                </tr>
-                <tr>
-                    <td style="background-color:#ff69b4;">10</td>
-                    <td>]</td>
-                    <td>if (tape[h0] != 0): jump backwards to matching [ command.</td>
-                </tr>
-                <tr>
-                    <td>-1 to -10</td>
-                    <td>1 to 10</td>
-                    <td>Used to store memory</td>
-                </tr>
-                <tr>
-                    <td>-11 to -36</td>
-                    <td>a to z</td>
-                    <td>Used to store memory</td>
-                </tr>
-                <tr>
-                    <td>11 to 36</td>
-                    <td>A to Z</td>
-                    <td>Used to store memory</td>
-                </tr>
-                <tr>
-                    <td>-36></td>
-                    <td>&</td>
-                    <td>Used to store memory</td>
-                </tr>
-                <tr>
-                    <td>36&lt</td>
-                    <td>%</td>
-                    <td>Used to store memory</td>
-                </tr>
-            </table>
-        </div>
+        <div data-include="./bfInterpreter/bfInterpreter"></div>
+    </div>
+    <div class="section">
+        <div data-include="./bfDescription/bfDescription"></div>
     </div>
 </body>
 

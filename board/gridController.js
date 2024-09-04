@@ -1,103 +1,19 @@
-import {
-  crossReactPrograms,
-  randomProgram,
-  toHumanReadableStr,
-  fromHumanReadableStr,
-} from "./brainfuckLogic.js";
-window.crossReactPrograms = crossReactPrograms;
-window.randomProgram = randomProgram;
-window.toHumanReadableStr = toHumanReadableStr;
-window.fromHumanReadableStr = fromHumanReadableStr;
+import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
+import { getLanguageMapping } from "../shared/readLanguageMapping.js";
+import { Noise } from "./noise.js"
 
 /* TYPES
-type Store: {State state, UiItems uiItems}
-type State: {int epoch, int uniqueCells, Grid previousGrid, Grid grid}
-type UiItems: CellUI[]
-type CellUI: {HTML canvas, CanvasRenderingContext2D ctx, function eventListener, HTML cellDiv}
-type LastSelected: {CellUI cellUI, Program program, Pos pos}
-type Pos: {int x, int y}
-type RunSpec: {int range, float speed, NoiseType noiseType, float(0-100) pctNoise}
-type NoiseType: enum("none", "kill-cells", "kill-instructions")
-type Grid: Program[][]
-type Program: int[64]
-*/
-
-
-class Noise {
-  static killCells(grid, spec) {
-    for (let x = 0; x < grid.length; x++) {
-      for (let y = 0; y < grid[x].length; y++) {
-        if (Math.random() < spec.quantileKilled) {
-          grid[x][y] = randomProgram();
-        }
-      }
-    }
-    return grid;
-  }
-
-  static killInstructions(grid, spec) {
-    const numUpdates = (grid.length * grid[0].length * 64) * spec.quantileKilled;
-    for (let i = 0; i < numUpdates; i++) {
-      const cellX = Math.floor(Math.random() * grid.length);
-      const cellY = Math.floor(Math.random() * grid[0].length);
-      const instructionIdx = Math.floor(Math.random() * 64);
-      const newInstruction = Math.floor(Math.random() * 11);
-      grid[cellX][cellY][instructionIdx] = newInstruction;
-    }
-    return grid;
-  }
-}
-
-class HistoryManager {
-  init(fidelity, initialState) {
-    this.fidelity = fidelity;
-    this.initialState = {
-      ...initialState,
-      grid: this.deepCopy(initialState.grid),
-    };
-    this.history = [];
-    return this;
-  }
-
-  deepCopy(grid) {
-    const deepCopy = [];
-    grid.forEach((row) => {
-      const newRow = row.map((cell) => {
-        return [...cell];
-      });
-      deepCopy.push(newRow);
-    });
-    return deepCopy;
-  }
-
-  addState(state) {
-    if (state.epoch % this.fidelity != 0) return;
-    const historyIsAhead =
-      this.history.length > 0 &&
-      this.history[this.history.length - 1].epoch > state.epoch;
-    if (historyIsAhead) return;
-    this.history.push(state);
-  }
-
-  // private
-  getStoredState(epoch) {
-    let pointer = this.history.length - 1;
-    if (this.history.length == 0) return this.initialState;
-    while (pointer >= 0 && this.history[pointer].epoch > epoch) {
-      pointer--;
-    }
-    return pointer < 0 ? this.initialState : this.history[pointer];
-  }
-
-  getState(epoch, getNextStateFunc) {
-    let state = this.getStoredState(epoch);
-    while (state.epoch < epoch) {
-      state = getNextStateFunc(state);
-      this.history.push(state);
-    }
-    return state;
-  }
-}
+  type Store: {State state, UiItems uiItems}
+  type State: {int epoch, int uniqueCells, Grid previousGrid, Grid grid}
+  type UiItems: CellUI[]
+  type CellUI: {HTML canvas, CanvasRenderingContext2D ctx, function eventListener, HTML cellDiv}
+  type LastSelected: {CellUI cellUI, Program program, Pos pos}
+  type Pos: {int x, int y}
+  type RunSpec: {int range, float speed, NoiseType noiseType, float(0-100) pctNoise, BrainfuckLogic bfLogic}
+  type NoiseType: enum("none", "kill-cells", "kill-instructions")
+  type Grid: Program[][]
+  type Program: int[64]
+  */
 
 class GridController {
   constructor() {
@@ -106,49 +22,25 @@ class GridController {
       program: null,
       pos: null,
     };
-    this.colorMapping = {
-      0: "#F0F2F3", // white
-      1: "#E64C3C", // red
-      2: "#F29B11", // orange
-      3: "#FFEA00", // yellow
-      4: "#7A3E00", // brown
-      5: "#145A32", // green
-      6: "#90EE90", // light green
-      7: "#1A5276", // blue
-      8: "#A3E4D7", // cyan
-      9: "#8E44AD", // purple
-      10: "#FF69B4", // pink
-    };
     this.noiseMapping = {
       "kill-cells": "killCells",
       "kill-instructions": "killInstructions",
     };
-  }
-
-  intToColor(num) {
-    if (num in this.colorMapping) {
-      return this.colorMapping[num];
-    } else if (num < 0) {
-      const x = Math.max(0, 256 + num);
-      return `rgb(${x},${x},${x})`;
-    } else if (num > 10) {
-      const x = Math.max(0, 1 - num);
-      const r = Math.max(0, x - 10);
-      return `rgb(${r},${x},${x})`;
-    }
+    this.logic = new BrainfuckLogic(getLanguageMapping());
+    this.toRedraw = false;
   }
 
   toColoredFormat(program) {
-    const asHrString = toHumanReadableStr(program);
+    const asHrString = this.logic.toHumanReadableStr(program);
     const asChars = asHrString.split("");
     return program
       .map((num, index) => {
-        const color = this.intToColor(num);
+        const color = this.logic.intToColor(num);
         // don't change the spacing, because it will effect the UI spacing
         return `<div 
-                class="char-instruction" 
-                style="background-color:${color};"
-            >${asChars[index]}</div>`;
+                  class="char-instruction" 
+                  style="background-color:${color};"
+              >${asChars[index]}</div>`;
       })
       .join("");
   }
@@ -208,12 +100,12 @@ class GridController {
     const { canvas, ctx, eventListener } = cellUI;
     const updatesSet = {};
     for (let i = 0; i < 64; i++) {
-      if (prevProgram && program[i] === prevProgram[i]) {
+      if (!this.toRedraw && prevProgram && program[i] === prevProgram[i]) {
         continue;
       }
       let rec_x = (i % 8) * 4;
       let rec_y = Math.floor(i / 8) * 4;
-      const color = this.intToColor(program[i]);
+      const color = this.logic.intToColor(program[i]);
       const updates = [rec_x, rec_y];
       if (!updatesSet[color]) {
         updatesSet[color] = [];
@@ -245,7 +137,7 @@ class GridController {
     this.isRunning = false;
     const epoch = 0;
     const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, () => randomProgram())
+      Array.from({ length: width }, () => BrainfuckLogic.randomProgram())
     );
     const uniqueCells = this.countUniqueCells(grid);
     return { epoch, uniqueCells, grid };
@@ -254,7 +146,7 @@ class GridController {
   initGridUI(width, height) {
     document.getElementById("copy-icon").addEventListener("click", (e) => {
       navigator.clipboard.writeText(
-        toHumanReadableStr(this.lastSelected.program)
+        this.logic.toHumanReadableStr(this.lastSelected.program)
       );
       document.getElementById("copy-icon-validation").style.display =
         "inline-block";
@@ -292,7 +184,8 @@ class GridController {
     return deepCopy;
   }
 
-  updateState(state, {range, speed, noiseType, pctNoise}) {
+  updateState(state, { range, speed, noiseType, pctNoise, bfLogic }) {
+    this.logic = bfLogic;
     let grid = this.deepCopy(state.grid);
     const height = grid.length;
     const width = grid[0].length;
@@ -303,7 +196,7 @@ class GridController {
         let x2 = (x + xOff + height) % height;
         let yOff = Math.floor(Math.random() * (2 * range + 1)) - range;
         let y2 = (y + yOff + width) % width;
-        let [newProgram1, newProgram2] = crossReactPrograms(
+        let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
           grid[x][y],
           grid[x2][y2]
         );
@@ -312,7 +205,7 @@ class GridController {
       }
     }
     if (this.noiseMapping[noiseType]) {
-      const funcName = this.noiseMapping[noiseType]
+      const funcName = this.noiseMapping[noiseType];
       const spec = { quantileKilled: pctNoise / 100 };
       grid = Noise[funcName](grid, spec);
     }
@@ -340,6 +233,7 @@ class GridController {
         this.updateCellUI(program, prevProgram, cellUI, { x, y });
       }
     }
+    this.toRedraw = false;
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
@@ -430,7 +324,7 @@ class GridController {
       textNoWhitespace
     );
     if (!isHrBfFormat) return;
-    const intArr = fromHumanReadableStr(textNoWhitespace);
+    const intArr = this.logic.fromHumanReadableStr(textNoWhitespace);
     this.submitProgram(intArr, state.grid);
   }
 
@@ -456,119 +350,11 @@ class GridController {
     const noiseType = document.getElementById("noise").value;
     const pctNoiseStr = document.getElementById("percent-noise")[0].value;
     const pctNoise = parseFloat(pctNoiseStr.slice(0, pctNoiseStr.length - 1));
-    return {range, speed, noiseType, pctNoise};
+    const languageMapping = getLanguageMapping();
+    const bfLogic = new BrainfuckLogic(languageMapping);
+    this.toRedraw = !this.logic.matches(bfLogic);
+    return { range, speed, noiseType, pctNoise, bfLogic };
   }
 }
 
-function addEventListener(id, action, preventDefaults) {
-  document.getElementById(id).addEventListener("mousedown", (e) => {
-    if (preventDefaults) {
-      e.preventDefault();
-    }
-    if (e.screenX) {
-      action();
-    }
-  });
-  document.getElementById(id).addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight") {
-      document.getElementById("board-step-button").focus();
-      stepAction();
-    } else if (e.key === "ArrowLeft") {
-      document.getElementById("board-back-button").focus();
-      backAction();
-    } else {
-      if (preventDefaults) {
-        e.preventDefault();
-      }
-      if (!e.screenX) {
-        action();
-      }
-    }
-  });
-}
-
-const HISTORY_FIDELITY = 20;
-const inputtedWidth = document.getElementById("bf-w")[0].value;
-const width = parseFloat(inputtedWidth);
-const inputtedHeight = document.getElementById("bf-h")[0].value;
-const height = parseFloat(inputtedHeight);
-const controller = new GridController();
-const store = {
-  state: controller.initState(width, height),
-  uiItems: controller.initGridUI(width, height),
-};
-const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
-controller.updateGridUI(store);
-
-const backAction = () => {
-  const runSpec = controller.getRunSpec();
-  store.state = controller.backState(history, store.state, runSpec);
-  controller.updateGridUI(store);
-};
-addEventListener("board-back-button", backAction);
-const stepAction = () => {
-  const runSpec = controller.getRunSpec();
-  store.state = controller.updateState(store.state, runSpec);
-  history.addState(store.state);
-  controller.updateGridUI(store);
-};
-addEventListener("board-step-button", stepAction);
-const runButton = document.getElementById("board-run-button");
-addEventListener("board-run-button", () => {
-  const runSpec = controller.getRunSpec();
-  controller.toggleRun(runButton, store, history, runSpec);
-});
-addEventListener("board-restart-button", () => {
-  const inputtedWidth = document.getElementById("bf-w")[0].value;
-  const width = parseFloat(inputtedWidth) || 20;
-  const inputtedHeight = document.getElementById("bf-h")[0].value;
-  const height = parseFloat(inputtedHeight) || 20;
-  store.uiItems = controller.initGridUI(width, height);
-  store.state = controller.initState(width, height);
-  history.init(HISTORY_FIDELITY, store.state);
-  controller.updateGridUI(store);
-  controller.stopRunning(runButton);
-});
-
-addEventListener("cell-details-edit-button", () => {
-  controller.enterCellEditMode();
-});
-addEventListener("cancel-button", () => {
-  controller.exitCellEditMode();
-});
-document
-  .getElementById("cell-details-1-edit-input")
-  .addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      controller.editProgramWithNumsForm(store.state);
-    }
-  });
-document
-  .getElementById("cell-details-2-edit-input")
-  .addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      controller.editProgramWithColorsForm(store.state);
-    }
-  });
-addEventListener("cell-details-1-edit-submit", () => {
-  controller.editProgramWithNumsForm(store.state);
-});
-addEventListener("cell-details-2-edit-submit", () => {
-  controller.editProgramWithColorsForm(store.state);
-});
-
-function dumpGridStrings() {
-  const arr = [];
-  store.state.grid.forEach((row) => {
-    row.forEach((cell) => {
-      arr.push(toHumanReadableStr(cell));
-    });
-  });
-  return arr;
-}
-window.store = store;
-window.dumpGridStrings = dumpGridStrings;
-window.HistoryManager = HistoryManager;
-window.GridController = GridController;
+export { GridController }

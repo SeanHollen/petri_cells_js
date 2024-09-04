@@ -5,7 +5,13 @@ function formatPercentage(input) {
 
 function formatNumber(input) {
   const value = input.value.replace(/[^-\d.]/g, "");
-  input.value = `${value}`;
+  input.value = value;
+}
+
+function formatInteger(input) {
+  let value = input.value.replace(/[^-\d]/g, "");
+  value = value.replace(/(?<!^)-/g, "");
+  input.value = value;
 }
 
 function clickNoiseOption(selectedElement) {
