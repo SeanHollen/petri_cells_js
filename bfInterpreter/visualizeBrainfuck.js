@@ -171,7 +171,8 @@ class BrainfuckExecutor {
     const filteredText = this.logic.toHumanReadableStr(intArr);
     this.tapeLabel.style.display = "inline";
     this.tapeForm.style.display = "none";
-    this.tapeHead.style.height = "19px";
+    this.tapeHead.style.height = "";
+    this.tapeHead.style.display = "block";
     this.tapeLabel.innerText = filteredText;
     this.initState(intArr);
   }

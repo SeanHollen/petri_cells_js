@@ -3,14 +3,21 @@ function formatPercentage(input) {
   input.value = `${value}%`;
 }
 
+function removeExcessDashes(value) {
+  const isNegative = value.substring(0, 1) === "-";
+  value = value.replace(/-/g, "");
+  return isNegative ? "-" + value : value;
+}
+
 function formatNumber(input) {
-  const value = input.value.replace(/[^-\d.]/g, "");
+  let value = input.value.replace(/[^-\d.]/g, "");
+  value = removeExcessDashes(value);
   input.value = value;
 }
 
 function formatInteger(input) {
   let value = input.value.replace(/[^-\d]/g, "");
-  value = value.replace(/(?<!^)-/g, "");
+  value = removeExcessDashes(value);
   input.value = value;
 }
 
