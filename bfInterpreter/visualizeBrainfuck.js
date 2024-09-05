@@ -1,13 +1,11 @@
-import {
-  randomProgram,
-  toHumanReadableStr,
-  fromHumanReadableStr,
-  execute1Read,
-} from "./brainfuckLogic.js";
+import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
+import { EventHandleHelper } from "../shared/handleEvents.js";
+import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 
 class BrainfuckExecutor {
   constructor() {
     this.running = false;
+    this.logic = new BrainfuckLogic(getLanguageMapping());
   }
 
   initState(startingTape) {
@@ -15,7 +13,7 @@ class BrainfuckExecutor {
     if (startingTape !== null) {
       this.program1 = startingTape;
     } else {
-      this.program1 = randomProgram();
+      this.program1 = BrainfuckLogic.randomProgram();
     }
     this.tapeLength = this.program1.length;
     this.state = {
@@ -42,13 +40,14 @@ class BrainfuckExecutor {
     this.tapeHead = document.getElementById("tape-label");
   }
 
-  updateState() {
+  updateState(runSpec) {
     if (this.runningBackwards) {
       this.backState();
       return;
     }
+    this.logic = runSpec.bfLogic;
     this.history.push(this.state);
-    this.state = execute1Read(this.state);
+    this.state = this.logic.execute1Read(this.state);
     this.runningBackwards = false;
   }
 
@@ -60,7 +59,7 @@ class BrainfuckExecutor {
 
   updateContent() {
     this.program1 = this.state.tape;
-    this.tapeLabel.innerText = toHumanReadableStr(this.program1);
+    this.tapeLabel.innerText = this.logic.toHumanReadableStr(this.program1);
     let pointer = this.state.pointer;
     if (pointer >= this.program1.length) {
       this.running = false;
@@ -94,25 +93,23 @@ class BrainfuckExecutor {
     ).join("");
   }
 
-  toggleRun(button) {
+  toggleRun(button, runSpec) {
     if (this.running) {
       this.running = false;
       button.textContent = "Run";
       clearInterval(this.runInterval);
     } else {
-      const speedForm = document.getElementById("bf-speed")[0];
-      let speed = parseFloat(speedForm.value);
-      if (speed < 0) {
+      if (runSpec.speed < 0) {
         this.runningBackwards = true;
-        speed *= -1;
+        runSpec.speed *= -1;
       }
 
       this.running = true;
       button.textContent = "Pause";
       this.runInterval = setInterval(() => {
-        this.updateState();
+        this.updateState(runSpec);
         this.updateContent();
-      }, 1000 / speed);
+      }, 1000 / runSpec.speed);
     }
   }
 
@@ -124,7 +121,7 @@ class BrainfuckExecutor {
       clearInterval(this.runInterval);
     }
     if (!state) {
-      state = randomProgram();
+      state = BrainfuckLogic.randomProgram();
     }
     this.initState(state);
     this.updateContent();
@@ -156,7 +153,7 @@ class BrainfuckExecutor {
       textNoWhitespace
     );
     if (isHrBfFormat) {
-      return fromHumanReadableStr(text);
+      return this.logic.fromHumanReadableStr(text);
     }
     throw new Error(`${text} contains invalid characters`);
   }
@@ -171,12 +168,21 @@ class BrainfuckExecutor {
       return;
     }
     this.tapeInput.classList.remove("error");
-    const filteredText = toHumanReadableStr(intArr);
+    const filteredText = this.logic.toHumanReadableStr(intArr);
     this.tapeLabel.style.display = "inline";
     this.tapeForm.style.display = "none";
-    this.tapeHead.style.height = "19px";
+    this.tapeHead.style.height = "";
+    this.tapeHead.style.display = "block";
     this.tapeLabel.innerText = filteredText;
     this.initState(intArr);
+  }
+
+  getRunSpec() {
+    const speedForm = document.getElementById("bf-speed")[0];
+    let speed = parseFloat(speedForm.value);
+    const languageMapping = getLanguageMapping();
+    const bfLogic = new BrainfuckLogic(languageMapping);
+    return {speed, bfLogic}
   }
 }
 
@@ -191,59 +197,39 @@ const controller = new BrainfuckExecutor();
 controller.initContent();
 controller.startup(initialState);
 
-function addEventListener(id, action, preventDefaults) {
-  // I want to use mousedown rather than click, because it's more snappy
-  // but mousedown doesn't cover spacebar and enter-key presses
-  // and if I register them both, then it causes both to trigger
-  // so I check e.screenX to register whether it was an actual click,
-  // and differentiate between mouse clicks and button clicks that way.
-  document.getElementById(id).addEventListener("mousedown", (e) => {
-    if (preventDefaults) {
-      e.preventDefault();
-    }
-    if (e.screenX) {
-      action();
-    }
-  });
-  document.getElementById(id).addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight") {
-      document.getElementById("bf-step-button").focus()
-      stepAction();
-    } else if (e.key === "ArrowLeft") {
-      document.getElementById("bf-back-button").focus()
-      backAction();
-    } else {
-      if (preventDefaults) {
-        e.preventDefault();
-      }
-      if (!e.screenX) {
-        action();
-      }
-    }
-  });
-}
+const buttonMapping = {
+  backButton: "bf-back-button",
+  stepButton: "bf-step-button",
+  runButton: "bf-run-button",
+  restartButton: "bf-restart-button",
+};
 
 const backAction = () => {
   controller.backState();
   controller.updateContent();
 };
-addEventListener("bf-back-button", backAction);
 const stepAction = () => {
-  controller.updateState();
+  const runSpec = controller.getRunSpec();
+  controller.updateState(runSpec);
   controller.updateContent();
 };
-addEventListener("bf-step-button", stepAction);
-addEventListener("bf-run-button", () => {
-  const runButton = document.getElementById("bf-run-button");
-  controller.toggleRun(runButton);
+
+const eventHandleHelper = new EventHandleHelper(buttonMapping, stepAction, backAction)
+
+eventHandleHelper.addEventListener(buttonMapping.backButton, backAction);
+eventHandleHelper.addEventListener(buttonMapping.stepButton, stepAction);
+eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
+  const runButton = document.getElementById(buttonMapping.runButton);
+  const runSpec = controller.getRunSpec();
+  controller.toggleRun(runButton, runSpec);
 });
-addEventListener("bf-restart-button", () => {
+eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   controller.startup();
 });
-addEventListener("bf-edit-button", () => {
+eventHandleHelper.addEventListener("bf-edit-button", () => {
   controller.openEditTapeForm();
 }, true);
-addEventListener("edit-tape-form", () => {
+eventHandleHelper.addEventListener("edit-tape-form", () => {
   controller.editTapeCloseForm();
 }, true);
 document.getElementById("tape-form").addEventListener("keydown", (e) => {

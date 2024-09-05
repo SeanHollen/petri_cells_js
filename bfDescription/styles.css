@@ -1,0 +1,18 @@
+#bf-description {
+    padding-top: 50px;
+}
+
+table {
+    font-family: monospace;
+    border-collapse: collapse;
+}
+
+td,
+th {
+    border: 1px solid #dddddd;
+    text-align: left;
+}
+
+.instr {
+    padding: 8px;
+}
