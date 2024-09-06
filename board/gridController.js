@@ -143,6 +143,16 @@ class GridController {
     return { epoch, uniqueCells, grid };
   }
 
+  initStateToData(width, height) {
+    this.isRunning = false;
+    const epoch = 0;
+    const grid = Array.from({ length: height }, () =>
+      Array.from({ length: width }, () => BrainfuckLogic.randomData())
+    );
+    const uniqueCells = this.countUniqueCells(grid);
+    return { epoch, uniqueCells, grid };
+  }
+
   initGridUI(width, height) {
     document.getElementById("copy-icon").addEventListener("click", (e) => {
       navigator.clipboard.writeText(
@@ -305,8 +315,7 @@ class GridController {
     });
   }
 
-  editProgramWithNumsForm(state) {
-    const inputVal = document.getElementById("cell-details-1-edit-input").value;
+  editProgramWithNumsForm(state, inputVal) {
     const isIntegerFormat = /^[,\-\d]+$/.test(inputVal);
     if (!isIntegerFormat) return;
     const intArr = inputVal.split(",").map((num) => parseInt(num));
@@ -317,8 +326,7 @@ class GridController {
     this.submitProgram(intArr, state.grid);
   }
 
-  editProgramWithColorsForm(state) {
-    const inputVal = document.getElementById("cell-details-2-edit-input").value;
+  editProgramWithColorsForm(state, inputVal) {
     const textNoWhitespace = inputVal.replace(/\s+/g, "");
     const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
       textNoWhitespace
@@ -354,6 +362,23 @@ class GridController {
     const bfLogic = new BrainfuckLogic(languageMapping);
     this.toRedraw = !this.logic.matches(bfLogic);
     return { range, speed, noiseType, pctNoise, bfLogic };
+  }
+
+  placeProgramsRandomly(grid, programs) {
+    const height = grid.length;
+    const width = grid[0].length;
+    const placed = new Set();
+    programs.forEach((program) => {
+      let x, y;
+      do {
+        x = Math.floor(Math.random() * height);
+        y = Math.floor(Math.random() * width);
+      } while (placed.has(`${x}${x}`));
+      placed.add(`${x}${y}`);
+      grid[x][y] = program;
+    })
+
+    return grid;
   }
 }
 

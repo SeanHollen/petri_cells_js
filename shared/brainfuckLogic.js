@@ -190,7 +190,7 @@ class BrainfuckLogic {
   }
 
   static randomData(size = 64, minInt = -256, maxInt = 0) {
-    return randomProgram(size, minInt, maxInt);
+    return BrainfuckLogic.randomProgram(size, minInt, maxInt);
   }
 
   static randomProgram(size = 64, minInt = 0, maxInt = 10) {
@@ -285,6 +285,27 @@ class BrainfuckLogic {
       }
     }
     return true;
+  }
+
+  fromGenericInput(text) {
+    const isIntegerFormat = /^[,\-\d]+$/.test(text);
+    if (isIntegerFormat) {
+      const intArr = text.split(",").map((num) => parseInt(num));
+      const validValues = intArr.every(
+        (i) => !isNaN(i) && i !== null && i !== undefined
+      );
+      if (validValues) {
+        return intArr;
+      }
+    }
+    const textNoWhitespace = text.replace(/\s+/g, "");
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
+      textNoWhitespace
+    );
+    if (isHrBfFormat) {
+      return this.fromHumanReadableStr(text);
+    }
+    throw new Error(`${text} contains invalid characters`);
   }
 }
 
