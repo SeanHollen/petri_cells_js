@@ -2,7 +2,7 @@ class BrainfuckLogic {
   constructor(conversions) {
     this.conversions = conversions;
     if (!conversions) {
-      this.conversions = {}
+      this.conversions = {};
       for (let i = 0; i <= 10; i++) {
         this.conversions[i] = i;
       }
@@ -115,7 +115,7 @@ class BrainfuckLogic {
     }
     return tape;
   }
-  
+
   execute1Read(state) {
     let { tape, pointer, head0, head1, loopStack, numReads, maxReads } = state;
     tape = [...tape];
@@ -188,14 +188,18 @@ class BrainfuckLogic {
     pointer++;
     return { tape, pointer, head0, head1, loopStack, numReads, maxReads };
   }
-  
+
+  static randomData(size = 64, minInt = -256, maxInt = 0) {
+    return BrainfuckLogic.randomProgram(size, minInt, maxInt);
+  }
+
   static randomProgram(size = 64, minInt = 0, maxInt = 10) {
     return Array.from(
       { length: size },
       () => Math.floor(Math.random() * (maxInt - minInt + 1)) + minInt
     );
   }
-  
+
   toHumanReadableStr(intArr) {
     const _this = this;
     function intToHrChar(instruction) {
@@ -213,13 +217,13 @@ class BrainfuckLogic {
       } else if (instruction < -26 - 10) {
         return "&";
       } else {
-        return "?"
+        return "?";
       }
     }
-  
+
     return intArr.map((num) => intToHrChar(num)).join("");
   }
-  
+
   fromHumanReadableStr(str) {
     const _this = this;
     function hrCharToInt(char) {
@@ -258,7 +262,7 @@ class BrainfuckLogic {
       return `rgb(${r},${x},${x})`;
     }
   }
-  
+
   crossReactPrograms(a, b) {
     let out = this.executeSelfModifyingBrainfuck(a.concat(b));
     let halfLen = Math.floor(out.length / 2);
@@ -281,6 +285,27 @@ class BrainfuckLogic {
       }
     }
     return true;
+  }
+
+  fromGenericInput(text) {
+    const isIntegerFormat = /^[,\-\d]+$/.test(text);
+    if (isIntegerFormat) {
+      const intArr = text.split(",").map((num) => parseInt(num));
+      const validValues = intArr.every(
+        (i) => !isNaN(i) && i !== null && i !== undefined
+      );
+      if (validValues) {
+        return intArr;
+      }
+    }
+    const textNoWhitespace = text.replace(/\s+/g, "");
+    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
+      textNoWhitespace
+    );
+    if (isHrBfFormat) {
+      return this.fromHumanReadableStr(text);
+    }
+    throw new Error(`${text} contains invalid characters`);
   }
 }
 

@@ -1,5 +1,5 @@
-import { EventHandleHelper } from "../shared/handleEvents.js";
-import { getLanguageMapping } from "../shared/readLanguageMapping.js";
+import { EventHandleHelper } from "/shared/handleEvents.js";
+import { getLanguageMapping } from "/shared/readLanguageMapping.js";
 
 function getDefaultMapping() {
   const map = {};

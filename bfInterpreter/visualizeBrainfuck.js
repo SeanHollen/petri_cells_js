@@ -137,32 +137,11 @@ class BrainfuckExecutor {
     this.tapeInput.select();
   }
 
-  acceptInput(text) {
-    const isIntegerFormat = /^[,\-\d]+$/.test(text);
-    if (isIntegerFormat) {
-      const intArr = text.split(",").map((num) => parseInt(num));
-      const validValues = intArr.every(
-        (i) => !isNaN(i) && i !== null && i !== undefined
-      );
-      if (validValues) {
-        return intArr;
-      }
-    }
-    const textNoWhitespace = text.replace(/\s+/g, "");
-    const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
-      textNoWhitespace
-    );
-    if (isHrBfFormat) {
-      return this.logic.fromHumanReadableStr(text);
-    }
-    throw new Error(`${text} contains invalid characters`);
-  }
-
   editTapeCloseForm() {
     const text = this.tapeInput.value;
     let intArr;
     try {
-      intArr = this.acceptInput(text);
+      intArr = this.logic.fromGenericInput(text);
     } catch {
       this.tapeInput.classList.add("error");
       return;
