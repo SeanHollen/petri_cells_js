@@ -9,7 +9,7 @@
             self-replicating programs can emerge spontaneously from cellular autonoma. 
             Runaway "life" only emerges occasionally, so run many times (and get lucky).
             <br/>
-            Every epoch, a given cell will be concatenated with one of its neighbors, the combined program will be run (as per the interpreter below),
+            Every epoch, a given cell will be concatenated with one of its neighbors, the combined program will be run (as per the interpreter further down),
             and the resultant will be split to create new cells.
             <br/>
             I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak"
@@ -34,6 +34,22 @@
                     <input id="bf-h" name="bf-h" value="20" class="form-input small-input"
                         oninput="formatInteger(this)" required>
                 </form>
+                <form class="control-item form-item dropdown-form">
+                    <label for="cell-size">Cell Size:</label>
+                    <select name="cell-size" class="form-input" style="height: 25px;" id="cell-size" onchange="clickNoiseOption(this)">
+                        <option value="4">4 (2x2)</option>
+                        <option value="9">9 (3x3)</option>
+                        <option value="16">16 (4x4)</option>
+                        <option value="25">25 (5x5)</option>
+                        <option value="36">36 (6x6)</option>
+                        <option value="49">49 (7x7)</option>
+                        <option value="64" selected="true">64 (8x8)</option>
+                        <option value="99">81 (9x9)</option>
+                        <option value="100">100 (10x10)</option>
+                        <option value="121">121 (11x11)</option>
+                        <option value="144">144 (12x12)</option>
+                    </select>
+                </form>
             </div>
             <div class="controls">
                 <form class="control-item form-item" id="grid-speed">
@@ -46,7 +62,7 @@
                     <input id="grid-range" name="grid-range" value="2" class="form-input small-input"
                         oninput="formatInteger(this)" required>
                 </form>
-                <form class="control-item form-item" style="padding-right: 0px;">
+                <form class="control-item form-item dropdown-form" style="padding-right: 0px">
                     <label for="noise">Noise:</label>
                     <select name="noise" class="form-input" style="height: 25px;" id="noise" onchange="clickNoiseOption(this)">
                         <option value="none">None</option>

@@ -264,10 +264,11 @@ class BrainfuckLogic {
   }
 
   crossReactPrograms(a, b) {
-    let out = this.executeSelfModifyingBrainfuck(a.concat(b));
-    let halfLen = Math.floor(out.length / 2);
-    a = out.slice(0, halfLen);
-    b = out.slice(halfLen);
+    const aLen = a.length;
+    const combined = a.concat(b);
+    const out = this.executeSelfModifyingBrainfuck(combined);
+    a = out.slice(0, aLen);
+    b = out.slice(aLen);
     return [a, b];
   }
 

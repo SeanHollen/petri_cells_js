@@ -1,15 +1,12 @@
 import { EventHandleHelper } from "../shared/handleEvents.js";
-import { GridController } from "../board/gridController.js"
-import { HistoryManager } from "../board/historyManager.js";
+import { GridController } from "../board/gridController.js" // different
+import { HistoryManager } from "../board/historyManager.js"; // different
 
 const HISTORY_FIDELITY = 20;
-const inputtedWidth = document.getElementById("bf-w")[0].value;
-const width = parseFloat(inputtedWidth);
-const inputtedHeight = document.getElementById("bf-h")[0].value;
-const height = parseFloat(inputtedHeight);
 const controller = new GridController();
+const {width, height, programLength} = controller.getInitSpec();
 const store = {
-  state: controller.initStateToData(width, height),
+  state: controller.initStateToData({width, height, programLength}), // different
   uiItems: controller.initGridUI(width, height),
 };
 const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
@@ -43,6 +40,7 @@ eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
   const runSpec = controller.getRunSpec();
   controller.toggleRun(runButton, store, history, runSpec);
 });
+// section is different
 eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   const inputtedWidth = document.getElementById("bf-w")[0].value;
   const width = parseFloat(inputtedWidth) || 10;
@@ -57,7 +55,7 @@ eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   const program2 = controller.logic.fromGenericInput(program2Input);
 
   store.uiItems = controller.initGridUI(width, height);
-  store.state = controller.initStateToData(width, height);
+  store.state = controller.initStateToData(width, height); 
   store.state.grid = controller.placeProgramsRandomly(
     store.state.grid,
     [program1, program2],
@@ -92,7 +90,7 @@ document
     }
   });
 eventHandleHelper.addEventListener("cell-details-1-edit-submit", () => {
-  const inputVal = document.getElementById("cell-details-1-edit-input").value;
+  const inputVal = document.getElementById("cell-details-1-edit-input").value
   controller.editProgramWithNumsForm(store.state, inputVal);
 });
 eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {

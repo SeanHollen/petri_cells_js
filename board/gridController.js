@@ -30,6 +30,26 @@ class GridController {
     this.toRedraw = false;
   }
 
+  initStateHelper(width, height, lambda) {
+    this.isRunning = false;
+    const epoch = 0;
+    const grid = Array.from({ length: height }, () =>
+      Array.from({ length: width }, lambda)
+    );
+    const uniqueCells = this.countUniqueCells(grid);
+    return { epoch, uniqueCells, grid };
+  }
+
+  initState({width, height, programLength}) {
+    const lambda = () => BrainfuckLogic.randomProgram(programLength);
+    return this.initStateHelper(width, height, lambda);
+  }
+
+  initStateToData(width, height, programLength) {
+    const lambda = () => BrainfuckLogic.randomData(programLength);
+    return this.initStateHelper(width, height, lambda);
+  }
+
   toColoredFormat(program) {
     const asHrString = this.logic.toHumanReadableStr(program);
     const asChars = asHrString.split("");
@@ -99,14 +119,17 @@ class GridController {
   updateCellUI(program, prevProgram, cellUI, { x, y }) {
     const { canvas, ctx, eventListener } = cellUI;
     const updatesSet = {};
-    for (let i = 0; i < 64; i++) {
+    const CELL_SIZE = 32;
+    const sqrt = Math.sqrt(program.length);
+    const scalar = CELL_SIZE / sqrt;
+    for (let i = 0; i < program.length; i++) {
       if (!this.toRedraw && prevProgram && program[i] === prevProgram[i]) {
         continue;
       }
-      let rec_x = (i % 8) * 4;
-      let rec_y = Math.floor(i / 8) * 4;
+      let recX = (i % sqrt) * scalar;
+      let recY = Math.floor(i / sqrt) * scalar;
       const color = this.logic.intToColor(program[i]);
-      const updates = [rec_x, rec_y];
+      const updates = [recX, recY];
       if (!updatesSet[color]) {
         updatesSet[color] = [];
       }
@@ -116,8 +139,8 @@ class GridController {
       ctx.beginPath();
       ctx.fillStyle = color;
       updatesSet[color].forEach((update) => {
-        const [rec_x, rec_y] = update;
-        ctx.rect(rec_x, rec_y, 4, 4);
+        const [recX, recY] = update;
+        ctx.rect(recX, recY, scalar, scalar);
       });
       ctx.fill();
     });
@@ -131,26 +154,6 @@ class GridController {
     });
     canvas.addEventListener("click", newEventListener);
     cellUI.eventListener = newEventListener;
-  }
-
-  initState(width, height) {
-    this.isRunning = false;
-    const epoch = 0;
-    const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, () => BrainfuckLogic.randomProgram())
-    );
-    const uniqueCells = this.countUniqueCells(grid);
-    return { epoch, uniqueCells, grid };
-  }
-
-  initStateToData(width, height) {
-    this.isRunning = false;
-    const epoch = 0;
-    const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, () => BrainfuckLogic.randomData())
-    );
-    const uniqueCells = this.countUniqueCells(grid);
-    return { epoch, uniqueCells, grid };
   }
 
   initGridUI(width, height) {
@@ -297,7 +300,7 @@ class GridController {
     const numInput = document.getElementById("cell-details-1-edit-input");
     const colorsInput = document.getElementById("cell-details-2-edit-input");
     numInput.value = this.lastSelected.program.join(",");
-    colorsInput.value = toHumanReadableStr(this.lastSelected.program);
+    colorsInput.value = this.logic.toHumanReadableStr(this.lastSelected.program);
   }
 
   exitCellEditMode() {
@@ -337,8 +340,9 @@ class GridController {
   }
 
   submitProgram(program, grid) {
-    program = program.slice(0, 64);
-    while (program.length < 64) program.push(0);
+    const typicalProgramLength = grid[0][0].length;
+    program = program.slice(0, typicalProgramLength);
+    while (program.length < typicalProgramLength) program.push(0);
     this.lastSelected.program = program;
     document.getElementById("cell-details-1").innerText = program.join(",");
     document.getElementById("cell-details-2").innerHTML =
@@ -362,6 +366,16 @@ class GridController {
     const bfLogic = new BrainfuckLogic(languageMapping);
     this.toRedraw = !this.logic.matches(bfLogic);
     return { range, speed, noiseType, pctNoise, bfLogic };
+  }
+
+  getInitSpec() {
+    const inputtedWidth = document.getElementById("bf-w")[0].value;
+    const width = parseInt(inputtedWidth) || 20;
+    const inputtedHeight = document.getElementById("bf-h")[0].value;
+    const height = parseInt(inputtedHeight) || 20;
+    const inputtedProgramLength = document.getElementById("cell-size").value;
+    const programLength = parseInt(inputtedProgramLength) || 64;
+    return { width, height, programLength };
   }
 
   placeProgramsRandomly(grid, programs) {

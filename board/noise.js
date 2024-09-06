@@ -13,11 +13,12 @@ class Noise {
   }
 
   static killInstructions(grid, spec) {
-    const numUpdates = grid.length * grid[0].length * 64 * spec.quantileKilled;
+    const programLengths = grid[0][0].length;
+    const numUpdates = grid.length * grid[0].length * programLengths * spec.quantileKilled;
     for (let i = 0; i < numUpdates; i++) {
       const cellX = Math.floor(Math.random() * grid.length);
       const cellY = Math.floor(Math.random() * grid[0].length);
-      const instructionIdx = Math.floor(Math.random() * 64);
+      const instructionIdx = Math.floor(Math.random() * programLengths);
       const newInstruction = Math.floor(Math.random() * 11);
       grid[cellX][cellY][instructionIdx] = newInstruction;
     }

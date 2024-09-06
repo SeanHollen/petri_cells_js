@@ -3,13 +3,10 @@ import { GridController } from "./gridController.js"
 import { HistoryManager } from "./historyManager.js";
 
 const HISTORY_FIDELITY = 20;
-const inputtedWidth = document.getElementById("bf-w")[0].value;
-const width = parseFloat(inputtedWidth);
-const inputtedHeight = document.getElementById("bf-h")[0].value;
-const height = parseFloat(inputtedHeight);
 const controller = new GridController();
+const {width, height, programLength} = controller.getInitSpec();
 const store = {
-  state: controller.initState(width, height),
+  state: controller.initState({width, height, programLength}),
   uiItems: controller.initGridUI(width, height),
 };
 const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
@@ -44,12 +41,9 @@ eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
   controller.toggleRun(runButton, store, history, runSpec);
 });
 eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
-  const inputtedWidth = document.getElementById("bf-w")[0].value;
-  const width = parseFloat(inputtedWidth) || 20;
-  const inputtedHeight = document.getElementById("bf-h")[0].value;
-  const height = parseFloat(inputtedHeight) || 20;
+  const { width, height, programLength } = controller.getInitSpec();
   store.uiItems = controller.initGridUI(width, height);
-  store.state = controller.initState(width, height);
+  store.state = controller.initState({ width, height, programLength });
   history.init(HISTORY_FIDELITY, store.state);
   controller.updateGridUI(store);
   controller.stopRunning(runButton);
