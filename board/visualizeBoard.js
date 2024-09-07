@@ -4,10 +4,10 @@ import { HistoryManager } from "./historyManager.js";
 
 const HISTORY_FIDELITY = 20;
 const controller = new GridController();
-const {width, height, programLength} = controller.getInitSpec();
+const initSpec = controller.getInitSpec();
 const store = {
-  state: controller.initState({width, height, programLength}),
-  uiItems: controller.initGridUI(width, height),
+  state: controller.initState(initSpec),
+  uiItems: controller.initGridUI(initSpec.width, initSpec.height),
 };
 const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
 controller.updateGridUI(store);
@@ -20,8 +20,7 @@ const buttonMapping = {
 };
 
 const backAction = () => {
-  const runSpec = controller.getRunSpec();
-  store.state = controller.backState(history, store.state, runSpec);
+  store.state = controller.backState(history, store.state);
   controller.updateGridUI(store);
 };
 const stepAction = () => {
@@ -41,12 +40,12 @@ eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
   controller.toggleRun(runButton, store, history, runSpec);
 });
 eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
-  const { width, height, programLength } = controller.getInitSpec();
-  store.uiItems = controller.initGridUI(width, height);
-  store.state = controller.initState({ width, height, programLength });
+  const initSpec = controller.getInitSpec();
+  store.uiItems = controller.initGridUI(initSpec.width, initSpec.height);
+  store.state = controller.initState(initSpec);
   history.init(HISTORY_FIDELITY, store.state);
   controller.updateGridUI(store);
-  controller.stopRunning(runButton);
+  controller.stopRunning(store.state, runButton);
 });
 
 eventHandleHelper.addEventListener("cell-details-edit-button", () => {

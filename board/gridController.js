@@ -1,53 +1,89 @@
 import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 import { Noise } from "./noise.js"
+import { Mulberry32, hashStringToInt } from "./rng.js";
 
 /* TYPES
-  type Store: {State state, UiItems uiItems}
-  type State: {int epoch, int uniqueCells, Grid previousGrid, Grid grid}
+  class GridController: {
+    LastSelected lastSelected
+    BrainfuckLogic logic
+    function runInterval
+  }
+  type Store: {
+    State state
+    UiItems uiItems
+  }
+  type State: {
+    int epoch
+    int uniqueCells
+    Grid previousGrid
+    Grid grid
+    TimeDirection timeDirection
+    Mulberry32 rng
+  }
+  // running backwards, paused, running
+  type TimeDirection: enum(-1, 0, 1)
   type UiItems: CellUI[]
-  type CellUI: {HTML canvas, CanvasRenderingContext2D ctx, function eventListener, HTML cellDiv}
-  type LastSelected: {CellUI cellUI, Program program, Pos pos}
-  type Pos: {int x, int y}
-  type RunSpec: {int range, float speed, NoiseType noiseType, float(0-100) pctNoise, BrainfuckLogic bfLogic}
-  type NoiseType: enum("none", "kill-cells", "kill-instructions")
+  type CellUI: {
+    HTML canvas
+    CanvasRenderingContext2D ctx
+    function eventListener
+    HTML cellDiv
+  }
+  type LastSelected: {
+    CellUI cellUI
+    Program program
+    Pos pos
+  }
+  type Pos: {
+    int x
+    int y
+  }
+  type RunSpec: {
+    int range
+    float speed
+    NoiseAction noiseAction
+    float(0-100) pctNoise
+    BrainfuckLogic bfLogic
+    // whether the color scheme has changed, requiring a cancel of rendering tricks
+    boolean toRecolor
+  }
+  type NoiseAction: enum("none", "killCells", "killInstructions")
   type Grid: Program[][]
   type Program: int[64]
   */
 
 class GridController {
   constructor() {
-    this.lastSelected = {
-      cellUI: null,
-      program: null,
-      pos: null,
-    };
-    this.noiseMapping = {
-      "kill-cells": "killCells",
-      "kill-instructions": "killInstructions",
-    };
-    this.logic = new BrainfuckLogic(getLanguageMapping());
-    this.toRedraw = false;
+    this.lastSelected = {};
+    const languageMapping = getLanguageMapping();
+    this.logic = new BrainfuckLogic(languageMapping);
   }
 
-  initStateHelper(width, height, lambda) {
-    this.isRunning = false;
-    const epoch = 0;
+  initStateHelper(width, height, rng, lambda) {
     const grid = Array.from({ length: height }, () =>
       Array.from({ length: width }, lambda)
     );
-    const uniqueCells = this.countUniqueCells(grid);
-    return { epoch, uniqueCells, grid };
+    return {
+      epoch: 0,
+      uniqueCells: this.countUniqueCells(grid),
+      grid: grid,
+      timeDirection: 0,
+      previousGrid: null,
+      rng: rng,
+    }
   }
 
-  initState({width, height, programLength}) {
-    const lambda = () => BrainfuckLogic.randomProgram(programLength);
-    return this.initStateHelper(width, height, lambda);
+  initState({width, height, programLength, seed}) {
+    const rng = new Mulberry32(seed);
+    const lambda = () => BrainfuckLogic.randomProgram(programLength, rng);
+    return this.initStateHelper(width, height, rng, lambda);
   }
 
-  initStateToData(width, height, programLength) {
-    const lambda = () => BrainfuckLogic.randomData(programLength);
-    return this.initStateHelper(width, height, lambda);
+  initStateToData(width, height, programLength, seed) {
+    const rng = new Mulberry32(seed);
+    const lambda = () => BrainfuckLogic.randomData(programLength, rng);
+    return this.initStateHelper(width, height, rng, lambda);
   }
 
   toColoredFormat(program) {
@@ -116,14 +152,14 @@ class GridController {
     return { canvas, ctx, cellDiv };
   }
 
-  updateCellUI(program, prevProgram, cellUI, { x, y }) {
+  updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor) {
     const { canvas, ctx, eventListener } = cellUI;
     const updatesSet = {};
     const CELL_SIZE = 32;
     const sqrt = Math.sqrt(program.length);
     const scalar = CELL_SIZE / sqrt;
     for (let i = 0; i < program.length; i++) {
-      if (!this.toRedraw && prevProgram && program[i] === prevProgram[i]) {
+      if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
         continue;
       }
       let recX = (i % sqrt) * scalar;
@@ -197,17 +233,18 @@ class GridController {
     return deepCopy;
   }
 
-  updateState(state, { range, speed, noiseType, pctNoise, bfLogic }) {
+  updateState(state, { range, noiseAction, pctNoise, bfLogic }) {
     this.logic = bfLogic;
     let grid = this.deepCopy(state.grid);
+    const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
 
     for (let x = 0; x < height; x++) {
       for (let y = 0; y < width; y++) {
-        let xOff = Math.floor(Math.random() * (2 * range + 1)) - range;
+        let xOff = Math.floor(rng.random() * (2 * range + 1)) - range;
         let x2 = (x + xOff + height) % height;
-        let yOff = Math.floor(Math.random() * (2 * range + 1)) - range;
+        let yOff = Math.floor(rng.random() * (2 * range + 1)) - range;
         let y2 = (y + yOff + width) % width;
         let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
           grid[x][y],
@@ -217,12 +254,12 @@ class GridController {
         grid[x2][y2] = newProgram2;
       }
     }
-    if (this.noiseMapping[noiseType]) {
-      const funcName = this.noiseMapping[noiseType];
+    if (noiseAction) {
       const spec = { quantileKilled: pctNoise / 100 };
-      grid = Noise[funcName](grid, spec);
+      grid = Noise[noiseAction](grid, rng, spec);
     }
     return {
+      ...state,
       epoch: state.epoch + 1,
       uniqueCells: this.countUniqueCells(state.grid),
       previousGrid: state.grid,
@@ -230,57 +267,56 @@ class GridController {
     };
   }
 
-  backState(history, state, runSpec) {
-    return history.getState(state.epoch - 1, (state) => {
-      return this.updateState(state, runSpec);
-    });
+  backState(history, state) {
+    return history.get(state.epoch - 1);
   }
 
-  updateGridUI({ state, uiItems }) {
+  updateGridUI({ state, uiItems }, toRecolor) {
     const { epoch, uniqueCells, grid, previousGrid } = state;
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
         let program = grid[x][y];
         let prevProgram = previousGrid ? previousGrid[x][y] : null;
         let cellUI = uiItems[x * grid[x].length + y];
-        this.updateCellUI(program, prevProgram, cellUI, { x, y });
+        this.updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor);
       }
     }
-    this.toRedraw = false;
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  stopRunning(button) {
-    this.running = false;
+  stopRunning(state, button) {
+    state.timeDirection = 0;
     button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
   toggleRun(button, store, history, runSpec) {
     const speed = runSpec.speed;
-    if (this.running) {
-      this.stopRunning(button);
+    if (store.state.timeDirection === 1) {
+      this.stopRunning(store.state, button);
       return;
     }
-    this.runningBackwards = speed < 0;
+    if (speed < 0) {
+      store.state.timeDirection = -1;
+    }
     if (this.runnningsBackward) speed *= -1;
 
-    this.running = true;
+    store.state.timeDirection = 1;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      if (this.runningBackwards) {
-        const newState = this.backState(history, store.state, runSpec);
+      if (store.state.timeDirection === -1) {
+        const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
       } else if (speed > 0) {
         store.state = this.updateState(store.state, runSpec);
-        history.addState(store.state);
+        history.noteState(store.state);
       } else {
         return;
       }
-      this.updateGridUI(store);
+      this.updateGridUI(store, runSpec.toRecolor);
     }, 1000 / speed);
   }
 
@@ -351,7 +387,7 @@ class GridController {
     const prevProgram = grid[x][y];
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y });
+    this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y }, false);
   }
 
   getRunSpec() {
@@ -360,12 +396,27 @@ class GridController {
     const speedForm = document.getElementById("grid-speed")[0];
     const speed = parseFloat(speedForm.value);
     const noiseType = document.getElementById("noise").value;
+    const noiseAction = {
+      "kill-cells": "killCells",
+      "kill-instructions": "killInstructions",
+    }[noiseType];
     const pctNoiseStr = document.getElementById("percent-noise")[0].value;
     const pctNoise = parseFloat(pctNoiseStr.slice(0, pctNoiseStr.length - 1));
     const languageMapping = getLanguageMapping();
     const bfLogic = new BrainfuckLogic(languageMapping);
-    this.toRedraw = !this.logic.matches(bfLogic);
-    return { range, speed, noiseType, pctNoise, bfLogic };
+    const toRecolor = !this.logic.matches(bfLogic);
+    return { range, speed, noiseAction, pctNoise, bfLogic, toRecolor };
+  }
+
+  getSeed() {
+    const seedInput = document.getElementById("seed")[0].value;
+    if (seedInput === "") {
+      return Math.floor(Math.random() * 4294967296) >>> 0;
+    } else if (!isNaN(parseInt(seedInput))) {
+      return parseInt(seedInput);
+    } else {
+      return hashStringToInt(seedInput) * 4294967296;
+    }
   }
 
   getInitSpec() {
@@ -375,18 +426,19 @@ class GridController {
     const height = parseInt(inputtedHeight) || 20;
     const inputtedProgramLength = document.getElementById("cell-size").value;
     const programLength = parseInt(inputtedProgramLength) || 64;
-    return { width, height, programLength };
+    const seed = this.getSeed()
+    return { width, height, programLength, seed };
   }
 
-  placeProgramsRandomly(grid, programs) {
+  placeProgramsRandomly(grid, programs, rng) {
     const height = grid.length;
     const width = grid[0].length;
     const placed = new Set();
     programs.forEach((program) => {
       let x, y;
       do {
-        x = Math.floor(Math.random() * height);
-        y = Math.floor(Math.random() * width);
+        x = Math.floor(rng.random() * height);
+        y = Math.floor(rng.random() * width);
       } while (placed.has(`${x}${x}`));
       placed.add(`${x}${y}`);
       grid[x][y] = program;

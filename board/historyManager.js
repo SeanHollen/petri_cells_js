@@ -1,26 +1,28 @@
 class HistoryManager {
   init(fidelity, initialState) {
     this.fidelity = fidelity;
-    this.initialState = {
-      ...initialState,
-      grid: this.deepCopy(initialState.grid),
-    };
+    this.initialState = this.deepCopy(initialState);
     this.history = [];
     return this;
   }
 
-  deepCopy(grid) {
-    const deepCopy = [];
-    grid.forEach((row) => {
-      const newRow = row.map((cell) => {
+  deepGridCopy(grid) {
+    return grid.map((row) => {
+      return row.map((cell) => {
         return [...cell];
       });
-      deepCopy.push(newRow);
     });
-    return deepCopy;
   }
 
-  addState(state) {
+  deepCopy(state) {
+    return {
+      ...state,
+      grid: this.deepGridCopy(state.grid),
+      rng: state.rng.getCopy(),
+    };
+  }
+
+  noteState(state) {
     if (state.epoch % this.fidelity != 0) return;
     const historyIsAhead =
       this.history.length > 0 &&
@@ -29,23 +31,23 @@ class HistoryManager {
     this.history.push(state);
   }
 
-  // private
-  getStoredState(epoch) {
-    let pointer = this.history.length - 1;
-    if (this.history.length == 0) return this.initialState;
-    while (pointer >= 0 && this.history[pointer].epoch > epoch) {
-      pointer--;
-    }
-    return pointer < 0 ? this.initialState : this.history[pointer];
+  addState(state) {
+    state = this.deepCopy(state);
+    const historyIsAhead =
+      this.history.length > 0 &&
+      this.history[this.history.length - 1].epoch > state.epoch;
+    if (historyIsAhead) return;
+    this.history.push(state);
   }
 
-  getState(epoch, getNextStateFunc) {
-    let state = this.getStoredState(epoch);
-    while (state.epoch < epoch) {
-      state = getNextStateFunc(state);
-      this.history.push(state);
-    }
-    return state;
+
+  get(epoch) {
+    let pointer = this.history.length - 1;
+    if (this.history.length == 0) return this.deepCopy(this.initialState);
+    // todo: replace this with a binary search
+    while (pointer >= 0 && this.history[pointer].epoch > epoch) pointer--;
+    const res = pointer < 0 ? this.initialState : this.history[pointer];
+    return this.deepCopy(res);
   }
 }
 

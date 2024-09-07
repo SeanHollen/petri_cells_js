@@ -4,10 +4,10 @@ import { HistoryManager } from "../board/historyManager.js"; // different
 
 const HISTORY_FIDELITY = 20;
 const controller = new GridController();
-const {width, height, programLength} = controller.getInitSpec();
+const initSpec = controller.getInitSpec();
 const store = {
-  state: controller.initStateToData({width, height, programLength}), // different
-  uiItems: controller.initGridUI(width, height),
+  state: controller.initStateToData(initSpec), // different
+  uiItems: controller.initGridUI(initSpec.width, initSpec.height),
 };
 const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
 controller.updateGridUI(store);
@@ -20,8 +20,7 @@ const buttonMapping = {
 };
 
 const backAction = () => {
-  const runSpec = controller.getRunSpec();
-  store.state = controller.backState(history, store.state, runSpec);
+  store.state = controller.backState(history, store.state);
   controller.updateGridUI(store);
 };
 const stepAction = () => {
@@ -59,10 +58,11 @@ eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   store.state.grid = controller.placeProgramsRandomly(
     store.state.grid,
     [program1, program2],
+    store.state.rng,
   );
   history.init(HISTORY_FIDELITY, store.state);
   controller.updateGridUI(store);
-  controller.stopRunning(runButton);
+  controller.stopRunning(store.state, runButton);
 });
 
 eventHandleHelper.addEventListener("cell-details-edit-button", () => {

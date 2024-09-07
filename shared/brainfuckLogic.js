@@ -190,13 +190,13 @@ class BrainfuckLogic {
   }
 
   static randomData(size = 64, minInt = -256, maxInt = 0) {
-    return BrainfuckLogic.randomProgram(size, minInt, maxInt);
+    return BrainfuckLogic.randomProgram(size, rng, minInt, maxInt);
   }
 
-  static randomProgram(size = 64, minInt = 0, maxInt = 10) {
+  static randomProgram(size = 64, rng = Math, minInt = 0, maxInt = 10) {
     return Array.from(
       { length: size },
-      () => Math.floor(Math.random() * (maxInt - minInt + 1)) + minInt
+      () => Math.floor(rng.random() * (maxInt - minInt + 1)) + minInt
     );
   }
 
