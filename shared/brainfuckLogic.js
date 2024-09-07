@@ -257,8 +257,8 @@ class BrainfuckLogic {
       const x = Math.max(0, 256 + instruction);
       return `rgb(${x},${x},${x})`;
     } else {
-      const x = Math.max(0, 1 - instruction);
-      const r = Math.max(0, x - 10);
+      const x = Math.max(0, 256 - instruction);
+      const r = Math.max(0, x - 16);
       return `rgb(${r},${x},${x})`;
     }
   }

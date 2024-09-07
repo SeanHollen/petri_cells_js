@@ -2,7 +2,7 @@ import { EventHandleHelper } from "../shared/handleEvents.js";
 import { GridController } from "./gridController.js"
 import { HistoryManager } from "./historyManager.js";
 
-const HISTORY_FIDELITY = 20;
+const HISTORY_FIDELITY = 50;
 const controller = new GridController();
 const initSpec = controller.getInitSpec();
 const store = {
@@ -82,5 +82,6 @@ eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
 });
 
 window.store = store;
+window.hist = history;
 window.HistoryManager = HistoryManager;
 window.GridController = GridController;

@@ -28,7 +28,9 @@ function containsDuplicates(cells) {
     if (seen.has(value)) {
       return true;
     }
-    seen.add(value);
+    if (value) {
+      seen.add(value);
+    }
   }
   return false;
 }
@@ -71,7 +73,7 @@ function openForms(cells, mapping) {
     val.style.display = "none";
     let input = cell.querySelector("input");
     input.style.display = "inline";
-    input.value = mapping[i]
+    input.value = mapping[i] || "";
   }
 }
 

@@ -12,13 +12,13 @@ import { Mulberry32, hashStringToInt } from "./rng.js";
   type Store: {
     State state
     UiItems uiItems
+    TimeDirection timeDirection
   }
   type State: {
     int epoch
     int uniqueCells
     Grid previousGrid
     Grid grid
-    TimeDirection timeDirection
     Mulberry32 rng
   }
   // running backwards, paused, running
@@ -68,7 +68,6 @@ class GridController {
       epoch: 0,
       uniqueCells: this.countUniqueCells(grid),
       grid: grid,
-      timeDirection: 0,
       previousGrid: null,
       rng: rng,
     }
@@ -223,14 +222,9 @@ class GridController {
   }
 
   deepCopy(grid) {
-    const deepCopy = [];
-    grid.forEach((row) => {
-      const newRow = row.map((cell) => {
-        return [...cell];
-      });
-      deepCopy.push(newRow);
+    return grid.map((row) => {
+      return [...row];
     });
-    return deepCopy;
   }
 
   updateState(state, { range, noiseAction, pctNoise, bfLogic }) {
@@ -239,19 +233,26 @@ class GridController {
     const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
+    const outRange = 2 * range + 1;
+    const seen = new Array(width * height).fill(false);
 
     for (let x = 0; x < height; x++) {
       for (let y = 0; y < width; y++) {
-        let xOff = Math.floor(rng.random() * (2 * range + 1)) - range;
+        let xOff = Math.floor(rng.random() * outRange) - range;
         let x2 = (x + xOff + height) % height;
-        let yOff = Math.floor(rng.random() * (2 * range + 1)) - range;
+        let yOff = Math.floor(rng.random() * outRange) - range;
         let y2 = (y + yOff + width) % width;
+        if (seen[x * height + y] || seen[x2 * height + y2]) {
+          continue;
+        }
         let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
           grid[x][y],
-          grid[x2][y2]
+          grid[x2][y2],
         );
         grid[x][y] = newProgram1;
         grid[x2][y2] = newProgram2;
+        seen[x * height + y] = true;
+        seen[x2 * height + y2] = true;
       }
     }
     if (noiseAction) {
@@ -259,9 +260,9 @@ class GridController {
       grid = Noise[noiseAction](grid, rng, spec);
     }
     return {
-      ...state,
+      rng: rng,
       epoch: state.epoch + 1,
-      uniqueCells: this.countUniqueCells(state.grid),
+      uniqueCells: this.countUniqueCells(grid),
       previousGrid: state.grid,
       grid: grid,
     };
@@ -287,30 +288,31 @@ class GridController {
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  stopRunning(state, button) {
-    state.timeDirection = 0;
+  stopRunning(store, button) {
+    store.timeDirection = 0;
     button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
   toggleRun(button, store, history, runSpec) {
-    const speed = runSpec.speed;
-    if (store.state.timeDirection === 1) {
-      this.stopRunning(store.state, button);
+    let speed = runSpec.speed;
+    if (store.timeDirection === 1 || store.timeDirection === -1) {
+      this.stopRunning(store, button);
       return;
     }
     if (speed < 0) {
-      store.state.timeDirection = -1;
+      store.timeDirection = -1;
+      speed *= -1
+    } else if (speed > 0) {
+      store.timeDirection = 1;
     }
-    if (this.runnningsBackward) speed *= -1;
 
-    store.state.timeDirection = 1;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      if (store.state.timeDirection === -1) {
+      if (store.timeDirection === -1) {
         const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
-      } else if (speed > 0) {
+      } else if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
         history.noteState(store.state);
       } else {

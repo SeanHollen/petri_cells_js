@@ -11,7 +11,8 @@ function getLanguageMapping() {
         if (cells.length === 0) {
             return;
         }
-        const value = parseInt(cells[0].innerText);
+        let value = parseInt(cells[0].innerText);
+        value = isNaN(value) ? "" : value;
         map[value] = i;
     });
     return map;
