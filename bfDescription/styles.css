@@ -16,3 +16,7 @@ th {
 .instr {
     padding: 8px;
 }
+
+#duplication-warning {
+    color:red;
+}

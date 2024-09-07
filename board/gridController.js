@@ -34,6 +34,7 @@ import { Mulberry32, hashStringToInt } from "./rng.js";
     CellUI cellUI
     Program program
     Pos pos
+    Pos lastReactedWith
   }
   type Pos: {
     int x
@@ -130,6 +131,7 @@ class GridController {
       lastSelected.cellUI = cellUI;
 
       document.getElementById("cell-details").style.display = "inline-block";
+      document.getElementById("cell-details-0").innerText = `(${pos.x},${pos.y})`;
       document.getElementById("cell-details-1").innerText = program.join(",");
       document.getElementById("cell-details-2").innerHTML =
         controller.toColoredFormat(program);
@@ -151,8 +153,22 @@ class GridController {
     return { canvas, ctx, cellDiv };
   }
 
-  updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor) {
-    const { canvas, ctx, eventListener } = cellUI;
+  highlightSelected(cellDiv, pos) {
+    if (cellDiv.style.border === '2px solid green') {
+      cellDiv.style.border = '';
+    }
+    if (!this.lastSelected.program) {
+      return;
+    }
+    const rPos = this.lastSelected.lastReactedWith;
+    if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
+      cellDiv.style.border = '2px solid green';
+    }
+  }
+
+  updateCellUI(program, prevProgram, cellUI, pos, toRecolor) {
+    const { canvas, ctx, eventListener, cellDiv } = cellUI;
+    this.highlightSelected(cellDiv, pos);
     const updatesSet = {};
     const CELL_SIZE = 32;
     const sqrt = Math.sqrt(program.length);
@@ -181,13 +197,10 @@ class GridController {
     });
 
     if (eventListener) {
-      canvas.removeEventListener("click", eventListener);
+      canvas.removeEventListener("mousedown", eventListener);
     }
-    const newEventListener = this.getCellClickEventListener(program, cellUI, {
-      x,
-      y,
-    });
-    canvas.addEventListener("click", newEventListener);
+    const newEventListener = this.getCellClickEventListener(program, cellUI, pos);
+    canvas.addEventListener("mousedown", newEventListener);
     cellUI.eventListener = newEventListener;
   }
 
@@ -253,6 +266,15 @@ class GridController {
         grid[x2][y2] = newProgram2;
         seen[x * height + y] = true;
         seen[x2 * height + y2] = true;
+        if (this.lastSelected.program) {
+          const lastSelectedPos = this.lastSelected.pos;
+          if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
+            this.lastSelected.lastReactedWith = {x: x2, y: y2};
+          } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
+            this.lastSelected.lastReactedWith = {x: x, y: y};
+          }
+  
+        }
       }
     }
     if (noiseAction) {
