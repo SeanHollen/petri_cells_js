@@ -59,6 +59,11 @@ class GridController {
     this.lastSelected = {};
     const languageMapping = getLanguageMapping();
     this.logic = new BrainfuckLogic(languageMapping);
+    this.cellPxlSize = 32;
+    this.vmin = 3.5;
+    this.gap = 0.4;
+    this.mainBorderPxl = 3;
+    this.altBorderPxl = 2;
   }
 
   initStateHelper(width, height, rng, lambda) {
@@ -135,7 +140,7 @@ class GridController {
       document.getElementById("cell-details-1").innerText = program.join(",");
       document.getElementById("cell-details-2").innerHTML =
         controller.toColoredFormat(program);
-      cellUI.cellDiv.style.border = "3px solid black";
+      cellUI.cellDiv.style.border = `${controller.mainBorderPxl}px solid black`;
     };
   }
 
@@ -143,8 +148,8 @@ class GridController {
     if (!cellDiv) return;
     const canvas = document.createElement("canvas");
     canvas.id = `${x}_${y}`;
-    canvas.width = 32;
-    canvas.height = 32;
+    canvas.width = this.cellPxlSize;
+    canvas.height = this.cellPxlSize;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
@@ -154,7 +159,7 @@ class GridController {
   }
 
   highlightSelected(cellDiv, pos) {
-    if (cellDiv.style.border === '2px solid green') {
+    if (cellDiv.style.border === `${this.altBorderPxl}px solid green`) {
       cellDiv.style.border = '';
     }
     if (!this.lastSelected.program) {
@@ -162,7 +167,7 @@ class GridController {
     }
     const rPos = this.lastSelected.lastReactedWith;
     if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
-      cellDiv.style.border = '2px solid green';
+      cellDiv.style.border = `${this.altBorderPxl}px solid green`;
     }
   }
 
@@ -170,9 +175,8 @@ class GridController {
     const { canvas, ctx, eventListener, cellDiv } = cellUI;
     this.highlightSelected(cellDiv, pos);
     const updatesSet = {};
-    const CELL_SIZE = 32;
     const sqrt = Math.sqrt(program.length);
-    const scalar = CELL_SIZE / sqrt;
+    const scalar = this.cellPxlSize / sqrt;
     for (let i = 0; i < program.length; i++) {
       if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
         continue;
@@ -216,9 +220,9 @@ class GridController {
     container.innerHTML = "";
     const grid = document.createElement("div");
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, 3.5vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, 3.5vmin)`;
-    grid.style.gap = ".4vmin";
+    grid.style.gridTemplateColumns = `repeat(${width}, ${this.vmin}vmin)`;
+    grid.style.gridTemplateRows = `repeat(${height}, ${this.vmin}vmin)`;
+    grid.style.gap = `${this.gap}vmin`;
     container.appendChild(grid);
     const uiItems = [];
     for (let x = 0; x < width; x++) {

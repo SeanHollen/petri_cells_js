@@ -1,5 +1,6 @@
 class BrainfuckLogic {
-  constructor(conversions) {
+  constructor(conversions, maxReads = 2 ** 10) {
+    this.maxReads = maxReads;
     this.conversions = conversions;
     if (!conversions) {
       this.conversions = {};
@@ -41,13 +42,13 @@ class BrainfuckLogic {
     };
   }
 
-  executeSelfModifyingBrainfuck(tape, maxReads = 2 ** 13) {
+  executeSelfModifyingBrainfuck(tape) {
     let head0 = 0;
     let head1 = 0;
     let loopStack = [];
     let pointer = 0;
     let numReads = 0;
-    while (pointer < tape.length && numReads < maxReads) {
+    while (pointer < tape.length && numReads < this.maxReads) {
       numReads += 1;
       let instruction = tape[pointer];
       instruction = this.conversions[instruction];
@@ -82,7 +83,7 @@ class BrainfuckLogic {
             while (
               loopLevel > 0 &&
               pointer < tape.length - 1 &&
-              numReads < maxReads
+              numReads < this.maxReads
             ) {
               numReads += 1;
               pointer += 1;
@@ -117,7 +118,7 @@ class BrainfuckLogic {
   }
 
   execute1Read(state) {
-    let { tape, pointer, head0, head1, loopStack, numReads, maxReads } = state;
+    let { tape, pointer, head0, head1, loopStack, numReads } = state;
     tape = [...tape];
     loopStack = [...loopStack];
     if (pointer >= tape.length) {
@@ -157,7 +158,7 @@ class BrainfuckLogic {
           while (
             loopLevel > 0 &&
             pointer < tape.length - 1 &&
-            numReads < maxReads
+            numReads < this.maxReads
           ) {
             numReads += 1;
             pointer += 1;
@@ -186,7 +187,7 @@ class BrainfuckLogic {
         break;
     }
     pointer++;
-    return { tape, pointer, head0, head1, loopStack, numReads, maxReads };
+    return { tape, pointer, head0, head1, loopStack, numReads };
   }
 
   static randomData(size = 64, minInt = -256, maxInt = 0) {
