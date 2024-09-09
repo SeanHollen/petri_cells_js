@@ -1,3 +1,5 @@
+# Petri Cells
+
 ### How I discovered this project
 
 I learned about a [Sabine Hossenfelder video](https://www.youtube.com/watch?v=EpRRwgyeBak) discussing a [a paper](https://arxiv.org/pdf/2406.19108) that was released in august, discussing how “artificial life” could emerge organically from cellular automata. 
@@ -73,3 +75,9 @@ Interestingly, this kind of noise will make it harder, if anything, for life to 
 ### super large grid
 
 [TODO]
+
+# Running Locally
+```
+# start the local server and navigate to the URL that is printed
+make server
+```
