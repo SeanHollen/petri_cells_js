@@ -12,13 +12,13 @@ import { Mulberry32, hashStringToInt } from "./rng.js";
   type Store: {
     State state
     UiItems uiItems
+    TimeDirection timeDirection
   }
   type State: {
     int epoch
     int uniqueCells
     Grid previousGrid
     Grid grid
-    TimeDirection timeDirection
     Mulberry32 rng
   }
   // running backwards, paused, running
@@ -34,6 +34,7 @@ import { Mulberry32, hashStringToInt } from "./rng.js";
     CellUI cellUI
     Program program
     Pos pos
+    Pos lastReactedWith
   }
   type Pos: {
     int x
@@ -58,6 +59,11 @@ class GridController {
     this.lastSelected = {};
     const languageMapping = getLanguageMapping();
     this.logic = new BrainfuckLogic(languageMapping);
+    this.cellPxlSize = 32;
+    this.vmin = 3.5;
+    this.gap = 0.4;
+    this.mainBorderPxl = 3;
+    this.altBorderPxl = 2;
   }
 
   initStateHelper(width, height, rng, lambda) {
@@ -68,7 +74,6 @@ class GridController {
       epoch: 0,
       uniqueCells: this.countUniqueCells(grid),
       grid: grid,
-      timeDirection: 0,
       previousGrid: null,
       rng: rng,
     }
@@ -131,10 +136,11 @@ class GridController {
       lastSelected.cellUI = cellUI;
 
       document.getElementById("cell-details").style.display = "inline-block";
+      document.getElementById("cell-details-0").innerText = `(${pos.x},${pos.y})`;
       document.getElementById("cell-details-1").innerText = program.join(",");
       document.getElementById("cell-details-2").innerHTML =
         controller.toColoredFormat(program);
-      cellUI.cellDiv.style.border = "3px solid black";
+      cellUI.cellDiv.style.border = `${controller.mainBorderPxl}px solid black`;
     };
   }
 
@@ -142,8 +148,8 @@ class GridController {
     if (!cellDiv) return;
     const canvas = document.createElement("canvas");
     canvas.id = `${x}_${y}`;
-    canvas.width = 32;
-    canvas.height = 32;
+    canvas.width = this.cellPxlSize;
+    canvas.height = this.cellPxlSize;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
@@ -152,12 +158,25 @@ class GridController {
     return { canvas, ctx, cellDiv };
   }
 
-  updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor) {
-    const { canvas, ctx, eventListener } = cellUI;
+  highlightSelected(cellDiv, pos) {
+    if (cellDiv.style.border === `${this.altBorderPxl}px solid green`) {
+      cellDiv.style.border = '';
+    }
+    if (!this.lastSelected.program) {
+      return;
+    }
+    const rPos = this.lastSelected.lastReactedWith;
+    if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
+      cellDiv.style.border = `${this.altBorderPxl}px solid green`;
+    }
+  }
+
+  updateCellUI(program, prevProgram, cellUI, pos, toRecolor) {
+    const { canvas, ctx, eventListener, cellDiv } = cellUI;
+    this.highlightSelected(cellDiv, pos);
     const updatesSet = {};
-    const CELL_SIZE = 32;
     const sqrt = Math.sqrt(program.length);
-    const scalar = CELL_SIZE / sqrt;
+    const scalar = this.cellPxlSize / sqrt;
     for (let i = 0; i < program.length; i++) {
       if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
         continue;
@@ -182,13 +201,10 @@ class GridController {
     });
 
     if (eventListener) {
-      canvas.removeEventListener("click", eventListener);
+      canvas.removeEventListener("mousedown", eventListener);
     }
-    const newEventListener = this.getCellClickEventListener(program, cellUI, {
-      x,
-      y,
-    });
-    canvas.addEventListener("click", newEventListener);
+    const newEventListener = this.getCellClickEventListener(program, cellUI, pos);
+    canvas.addEventListener("mousedown", newEventListener);
     cellUI.eventListener = newEventListener;
   }
 
@@ -204,9 +220,9 @@ class GridController {
     container.innerHTML = "";
     const grid = document.createElement("div");
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, 3.5vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, 3.5vmin)`;
-    grid.style.gap = ".4vmin";
+    grid.style.gridTemplateColumns = `repeat(${width}, ${this.vmin}vmin)`;
+    grid.style.gridTemplateRows = `repeat(${height}, ${this.vmin}vmin)`;
+    grid.style.gap = `${this.gap}vmin`;
     container.appendChild(grid);
     const uiItems = [];
     for (let x = 0; x < width; x++) {
@@ -223,14 +239,9 @@ class GridController {
   }
 
   deepCopy(grid) {
-    const deepCopy = [];
-    grid.forEach((row) => {
-      const newRow = row.map((cell) => {
-        return [...cell];
-      });
-      deepCopy.push(newRow);
+    return grid.map((row) => {
+      return [...row];
     });
-    return deepCopy;
   }
 
   updateState(state, { range, noiseAction, pctNoise, bfLogic }) {
@@ -239,19 +250,35 @@ class GridController {
     const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
+    const outRange = 2 * range + 1;
+    const seen = new Array(width * height).fill(false);
 
     for (let x = 0; x < height; x++) {
       for (let y = 0; y < width; y++) {
-        let xOff = Math.floor(rng.random() * (2 * range + 1)) - range;
+        let xOff = Math.floor(rng.random() * outRange) - range;
         let x2 = (x + xOff + height) % height;
-        let yOff = Math.floor(rng.random() * (2 * range + 1)) - range;
+        let yOff = Math.floor(rng.random() * outRange) - range;
         let y2 = (y + yOff + width) % width;
+        if (seen[x * height + y] || seen[x2 * height + y2]) {
+          continue;
+        }
         let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
           grid[x][y],
-          grid[x2][y2]
+          grid[x2][y2],
         );
         grid[x][y] = newProgram1;
         grid[x2][y2] = newProgram2;
+        seen[x * height + y] = true;
+        seen[x2 * height + y2] = true;
+        if (this.lastSelected.program) {
+          const lastSelectedPos = this.lastSelected.pos;
+          if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
+            this.lastSelected.lastReactedWith = {x: x2, y: y2};
+          } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
+            this.lastSelected.lastReactedWith = {x: x, y: y};
+          }
+  
+        }
       }
     }
     if (noiseAction) {
@@ -259,9 +286,9 @@ class GridController {
       grid = Noise[noiseAction](grid, rng, spec);
     }
     return {
-      ...state,
+      rng: rng,
       epoch: state.epoch + 1,
-      uniqueCells: this.countUniqueCells(state.grid),
+      uniqueCells: this.countUniqueCells(grid),
       previousGrid: state.grid,
       grid: grid,
     };
@@ -287,30 +314,31 @@ class GridController {
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  stopRunning(state, button) {
-    state.timeDirection = 0;
+  stopRunning(store, button) {
+    store.timeDirection = 0;
     button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
   toggleRun(button, store, history, runSpec) {
-    const speed = runSpec.speed;
-    if (store.state.timeDirection === 1) {
-      this.stopRunning(store.state, button);
+    let speed = runSpec.speed;
+    if (store.timeDirection === 1 || store.timeDirection === -1) {
+      this.stopRunning(store, button);
       return;
     }
     if (speed < 0) {
-      store.state.timeDirection = -1;
+      store.timeDirection = -1;
+      speed *= -1
+    } else if (speed > 0) {
+      store.timeDirection = 1;
     }
-    if (this.runnningsBackward) speed *= -1;
 
-    store.state.timeDirection = 1;
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      if (store.state.timeDirection === -1) {
+      if (store.timeDirection === -1) {
         const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
-      } else if (speed > 0) {
+      } else if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
         history.noteState(store.state);
       } else {

@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="/bfInterpreter/styles.css">
 <script type="module" src="/bfInterpreter/visualizeBrainfuck.js"></script>
-<h1>Brainfuck Interpreter</h1>
+<h1>Extended Brainfuck Interpreter</h1>
 <div>
     <div class="controls">
         <button class="control-item" id="bf-back-button">Back</button>
@@ -13,7 +13,7 @@
         <form class="control-item form-item" id="bf-speed">
             <label for="bf-speed">Steps/Second:</label>
             <input id="bf-speed" name="bf-speed" value="5" class="form-input medium-input"
-                oninput="formatNumber(this)" required>
+                type="number" oninput="formatNumber(this)" required>
         </form>
     </div>
     </div">

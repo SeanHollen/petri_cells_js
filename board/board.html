@@ -4,17 +4,18 @@
     <div>
         <h1>Petri Cells</h1>
         <p>
-            An implementation of the sim from
+            An implementation of the simulation from
             <a href="https://arxiv.org/pdf/2406.19108" target=”_blank”>this paper</a> which explores how
             self-replicating programs can emerge spontaneously from cellular autonoma. 
             Runaway "life" only emerges occasionally, so run many times (and get lucky).
-            <br/>
-            Every epoch, a given cell will be concatenated with one of its neighbors, the combined program will be run (as per the interpreter further down),
-            and the resultant will be split to create new cells.
-            <br/>
-            I learned about it from <a href="https://www.youtube.com/watch?v=EpRRwgyeBak"
-                target=”_blank”>this</a>
-            Sabine Hossenfelder video. Read those sources for more detailed descriptions of what is happening.
+            <br/><br/>
+            Read <a href="/readme" target=”_blank”>my post</a> describing the project to get a better idea of 
+            what is happening.
+            <br/><br/>
+            Click on a specific cell on the grid to view its contents. Click "Run" to start the simulation, 
+            and "New" to start over. Scroll down more to see the interpreter. You can copy sequences over 
+            and run them in the interpreter.
+
         </p>
         <div>
             <div class="controls">
@@ -27,16 +28,16 @@
                 <form class="control-item form-item" id="bf-w">
                     <label for="bf-w">Width:</label>
                     <input id="bf-w" name="bf-w" value="20" class="form-input small-input"
-                        oninput="formatInteger(this)" required>
+                        type="number" oninput="formatInteger(this)" required>
                 </form>
                 <form class="control-item form-item" id="bf-h">
                     <label for="bf-h">Height:</label>
                     <input id="bf-h" name="bf-h" value="20" class="form-input small-input"
-                        oninput="formatInteger(this)" required>
+                        type="number" oninput="formatInteger(this)" required>
                 </form>
                 <form class="control-item form-item dropdown-form">
                     <label for="cell-size">Cell Size:</label>
-                    <select name="cell-size" class="form-input" style="height: 25px;" id="cell-size" onchange="clickNoiseOption(this)">
+                    <select name="cell-size" class="form-input select" id="cell-size" onchange="clickNoiseOption(this)">
                         <option value="4">4 (2x2)</option>
                         <option value="9">9 (3x3)</option>
                         <option value="16">16 (4x4)</option>
@@ -59,16 +60,16 @@
                 <form class="control-item form-item" id="grid-speed">
                     <label for="grid-speed">Steps/Second:</label>
                     <input id="grid-speed" name="grid-speed" class="form-input medium-input" value="5"
-                        oninput="formatNumber(this)" required>
+                        type="number" oninput="formatNumber(this)" required>
                 </form>
                 <form class="control-item form-item" id="grid-range">
                     <label title="Determines the 'range' for how far apart we can pair up the cells to execute against each other" for="grid-range">Spread:</label>
                     <input id="grid-range" name="grid-range" value="2" class="form-input small-input"
-                        oninput="formatInteger(this)" required>
+                        type="number" oninput="formatInteger(this)" required>
                 </form>
-                <form class="control-item form-item dropdown-form" style="padding-right: 0px">
+                <form class="control-item form-item dropdown-form with-side-item">
                     <label for="noise">Noise:</label>
-                    <select name="noise" class="form-input" style="height: 25px;" id="noise" onchange="clickNoiseOption(this)">
+                    <select name="noise" class="form-input select" id="noise" onchange="clickNoiseOption(this)">
                         <option value="none">None</option>
                         <option value="kill-cells">Kill cells</option>
                         <option value="kill-instructions">Kill instructions</option>
@@ -90,7 +91,8 @@
     <div id="grid-container"></div>
 </div>
 <div id="cell-details" class="cell-details">
-    <div id="cell-details-1" style="display:block; width:700px"></div>
+    <div id="cell-details-0" style="display:block;"></div>
+    <div id="cell-details-1" style="display:block;"></div>
     <form id="cell-details-1-edit-form" class="cell-details-edit-form" style="display:none;">
         <input id="cell-details-1-edit-input" style="display: inline"
             name="cell-details-1-edit-input" class="large-input cell-details-1-edit-input" required>

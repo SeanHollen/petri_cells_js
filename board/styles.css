@@ -41,3 +41,14 @@
     margin-bottom: 4px;
 }
 
+.select {
+    height: 25px;
+}
+
+.with-side-item {
+    padding-right: 0px;
+}
+
+#cell-details-1 {
+    width: 700px;
+}
