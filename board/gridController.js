@@ -67,6 +67,12 @@ class GridController {
   }
 
   initStateHelper(width, height, rng, lambda) {
+    this.tuples = [];
+    for (let x = 0; x < height; x++) {
+      for (let y = 0; y < width; y++) {
+        this.tuples.push([x, y]);
+      }
+    }
     const grid = Array.from({ length: height }, () =>
       Array.from({ length: width }, lambda)
     );
@@ -253,34 +259,33 @@ class GridController {
     const outRange = 2 * range + 1;
     const seen = new Array(width * height).fill(false);
 
-    for (let x = 0; x < height; x++) {
-      for (let y = 0; y < width; y++) {
-        let xOff = Math.floor(rng.random() * outRange) - range;
-        let x2 = (x + xOff + height) % height;
-        let yOff = Math.floor(rng.random() * outRange) - range;
-        let y2 = (y + yOff + width) % width;
-        if (seen[x * height + y] || seen[x2 * height + y2]) {
-          continue;
-        }
-        let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
-          grid[x][y],
-          grid[x2][y2],
-        );
-        grid[x][y] = newProgram1;
-        grid[x2][y2] = newProgram2;
-        seen[x * height + y] = true;
-        seen[x2 * height + y2] = true;
-        if (this.lastSelected.program) {
-          const lastSelectedPos = this.lastSelected.pos;
-          if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
-            this.lastSelected.lastReactedWith = {x: x2, y: y2};
-          } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
-            this.lastSelected.lastReactedWith = {x: x, y: y};
-          }
-  
+    this.tuples = this.tuples.sort(() => rng.random() - 0.5);
+    this.tuples.forEach((tuple) => {
+      let [x, y] = tuple
+      let xOff = Math.floor(rng.random() * outRange) - range;
+      let x2 = (x + xOff + height) % height;
+      let yOff = Math.floor(rng.random() * outRange) - range;
+      let y2 = (y + yOff + width) % width;
+      if (seen[x * width + y] || seen[x2 * width + y2]) {
+        return;
+      }
+      let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
+        grid[x][y],
+        grid[x2][y2],
+      );
+      grid[x][y] = newProgram1;
+      grid[x2][y2] = newProgram2;
+      seen[x * width + y] = true;
+      seen[x2 * width + y2] = true;
+      if (this.lastSelected.program) {
+        const lastSelectedPos = this.lastSelected.pos;
+        if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
+          this.lastSelected.lastReactedWith = {x: x2, y: y2};
+        } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
+          this.lastSelected.lastReactedWith = {x: x, y: y};
         }
       }
-    }
+    });
     if (noiseAction) {
       const spec = { quantileKilled: pctNoise / 100 };
       grid = Noise[noiseAction](grid, rng, spec);
