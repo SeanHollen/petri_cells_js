@@ -113,15 +113,11 @@ class BrainfuckExecutor {
   }
 
   startup(state) {
-    if (this.running) {
-      this.running = false;
-      const runButton = document.getElementById("bf-run-button");
-      runButton.textContent = "Run";
-      clearInterval(this.runInterval);
-    }
-    if (!state) {
-      state = BrainfuckLogic.randomProgram();
-    }
+    const runButton = document.getElementById("bf-run-button");
+    runButton.textContent = "Run";
+    clearInterval(this.runInterval);
+    this.running = false;
+    state = state || BrainfuckLogic.randomProgram();
     this.initState(state);
     this.updateContent();
   }
