@@ -1,12 +1,12 @@
 ## What is Petri Cells BFF?
 
-I heard about this [Sabine Hossenfelder video](https://www.youtube.com/watch?v=EpRRwgyeBak) discussing a [a paper](https://arxiv.org/pdf/2406.19108) that was released in august, discussing how “artificial life” in the form of executable programs could emerge organically from noise.
+I heard about this [Sabine Hossenfelder video](https://www.youtube.com/watch?v=EpRRwgyeBak) discussing a [a paper](https://arxiv.org/pdf/2406.19108) that was released in august, on how “artificial life” in the form of executable programs could emerge organically from noise.
 
 This paper sits at the intersection of several different topics which are very interesting to me - languages and computation, clever visualizations, origins of life, virtual evolution, and more. So I created an [interactive visualization](link) of the concept. 
 
 I more ore less reproduce the research paper, with only slight modifications, and a different UI. This writeup will describe how the simulation works, and some of the results.
 
-To start off, this is a study into cellular automata. As the prime example, you’ve likely heard of Conway’s Game of Life (example [here](https://seanhollen.com/conway)), a program delivers emergent complexity out of simple interaction rules.
+You’ve probably heard of the the prime example of cellular automata, Conway’s Game of Life. Example [here](https://seanhollen.com/conway), a program delivers emergent complexity out of simple interaction rules.
 
 There are many cellular automata variants with hard-coded rules for cell interaction. But let’s take things a step further: what if we allow variation in how the different cells on the grid behave? 
 
@@ -18,7 +18,7 @@ Okay. If the cells are each literally self-contained programs, what is the *prog
 
 Supposedly, Brainfuck (BF) wasn’t meant for practical uses, but rather as a theoretical exercise in language design. That doesn’t apply here, though, because the language is actually chosen for it’s practicality. Because the syntax is so minimalist, we can randomly create any program, and it will be executable.
 
-Actually, we are going to be using vanilla BF, but rather, an a variant designed for programs to modify themselves, “BFF”. Whereas standard BF takes in an input and returns an output, BFF will *write* to the same tape that it *reads* from, modifying itself in real-time.
+Actually, we are not going to be using vanilla BF, but rather, an a variant designed for programs to modify themselves, “BFF”. Whereas standard BF takes in an input and returns an output, BFF will *write* to the same tape that it *reads* from, modifying itself in real-time.
 
 The instruction set for BFF is below.
 
@@ -32,13 +32,17 @@ To play with and test the BFF interpreter, I built a visual version.
 
 [Insert animation of my BF executer viz] - TODO
 
-Now that we have an interpreter for executing these programs. We can use it in really cool ways to recursively recombine programs with each other. 
+On the backend, I store programs as arrays of integers, but I also can print a program as a human-readable-string that read as Brainfuck code. If you click on a cell, it will give you both formats. You can think of the human-readable-string format as the “lossy” format, and the integer-array format as the “lossless” format.
+
+From what I can tell, the original research paper just stores all of the programs as strings. This has a few advantages (and probably some disadvantages), and is one of the biggest ways that our implementations differ. I’ll discuss the language mapping more close to the end of this post.
+
+Either way, we now have an interpreter for executing these programs. We can use it in really cool ways to recursively recombine programs with each other. 
 
 To combine programs with each other and make something new, there are 3 steps:
 
 1. **The programs are concatenated**, literally like concatenating arrays or strings, into one program.
 2. **The program is executed**, using the compiler for BFF (self-modifying Brainfuck). Since the program makes changes to itself, the result will be a modified program.
-3. The program is split in half, resulting in 2 new programs.
+3. **The program is split in half**, resulting in 2 new programs.
 
 And the two new programs take the place of the original programs. This process can be expressed as one line of code: `a, b = split(execBff(a + b))`.
 
@@ -63,7 +67,7 @@ What I like about the “life” that emerges is how much of a stark phase trans
 
 What we quickly noticed, with the default settings (a small grid, no noise), that there are basically 2 types of life which come to dominate.
 
-**Firstly**, some life comes about almost immediately in the chaotic conditions under which the board in initialized, yielding some interesting patterns.
+**Firstly**, some life comes about almost immediately in the chaotic conditions under which the board is initialized, yielding some interesting patterns.
 
 [insert gif of life taking over very early] - OK
 
@@ -83,7 +87,7 @@ After a while, I got bored of this, so I introduced of noise options. The option
 
 **Kill cells** will randomly pick a certain number of cells from the grid and replace them with entirely new random instruction sets.
 
-Killing cells reliably creates life. If you the program running long enough while killing cells at a 3% rate, it will always result in an interesting pattern coming to dominate the board.
+Killing cells reliably creates life. If you the program running long enough while killing cells at a 3% rate, it will virtually always result in an interesting pattern coming to dominate the board.
 
 [insert gif of life emerging under the condition of kill-cells noise] - TODO
 
@@ -99,8 +103,7 @@ Interestingly, this kind of noise will make it harder, if anything, for life to 
 
 ## Other customizations
 
-
-Cell Size
+**Cell Size**
 
 By default, a program is 64 instructions long - a square number, so it can fit into a cell. But there’s no reason it can’t be any other square number! I implemented the ability to create different-length programs: 49, 36, 25, 15, and so on. When you run the sim with smaller-sized programs, one thing you notice is that terminal states are more likely. Here, “terminal state” refers to a static, totally unchanging board.
 
@@ -114,24 +117,24 @@ The original paper computes entropy and complexity precisely with proprietary fo
 
 I’m not sure which I like more. Despite the diversity of the the heterogeneous replicators, which allow for many subtle variants, there is rarely any confusion whether a group of cells is part of the same “species”.
 
-History
+**History**
 
 TODO
 
-Brainfuck Randomizer
+**Interpreter Randomizer**
 
 TODO
 
-Cell Viewer
+**Cell Viewer**
 
 TODO
 
-Randomizing the pointer start position
+**Randomizing the pointer start position**
 
 When two cells are paired up, their programs are concatenated in sequence. This gives the first cell a big advantage over other cell, because the pointer starts at the beginning of the sequence, executing those instructions first, and it might not even reach the second half. To remedy this, I could introduce a variant which drops the pointer randomly somewhere, and ends when it makes a full rotation.
 
 TODO: implement this feature?
 
-Super large grids
+**Super large grids**
 
 TODO: make this better?
