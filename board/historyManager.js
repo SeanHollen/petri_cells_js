@@ -22,30 +22,27 @@ class HistoryManager {
     };
   }
 
+  lastStoredEpochPriorTo(epoch) {
+    // todo: replace this with a binary search
+    let pointer = this.history.length - 1;
+    while (pointer >= 0 && this.history[pointer].epoch > epoch) pointer--;
+    return pointer;
+  }
+
   noteState(state) {
     if (state.epoch % this.fidelity != 0) return;
-    const historyIsAhead =
-      this.history.length > 0 &&
-      this.history[this.history.length - 1].epoch > state.epoch;
-    if (historyIsAhead) return;
-    this.history.push(state);
+    this.addState(state);
   }
 
   addState(state) {
     state = this.deepCopy(state);
-    const historyIsAhead =
-      this.history.length > 0 &&
-      this.history[this.history.length - 1].epoch > state.epoch;
-    if (historyIsAhead) return;
-    this.history.push(state);
+    const pointer = this.lastStoredEpochPriorTo(state.epoch) + 1;
+    this.history.splice(pointer, 0, state);
   }
 
-
   get(epoch) {
-    let pointer = this.history.length - 1;
     if (this.history.length == 0) return this.deepCopy(this.initialState);
-    // todo: replace this with a binary search
-    while (pointer >= 0 && this.history[pointer].epoch > epoch) pointer--;
+    const pointer = this.lastStoredEpochPriorTo(epoch);
     const res = pointer < 0 ? this.initialState : this.history[pointer];
     return this.deepCopy(res);
   }

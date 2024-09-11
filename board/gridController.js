@@ -259,8 +259,8 @@ class GridController {
     const outRange = 2 * range + 1;
     const seen = new Array(width * height).fill(false);
 
-    this.tuples = this.tuples.sort(() => rng.random() - 0.5);
-    this.tuples.forEach((tuple) => {
+    const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
+    tuples.forEach((tuple) => {
       let [x, y] = tuple
       let xOff = Math.floor(rng.random() * outRange) - range;
       let x2 = (x + xOff + height) % height;
