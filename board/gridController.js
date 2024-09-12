@@ -60,11 +60,7 @@ class GridController {
     this.lastSelected = {};
     const languageMapping = getLanguageMapping();
     this.logic = new BrainfuckLogic(languageMapping);
-    this.cellPxlSize = 32;
-    this.vmin = 3.5;
-    this.gap = 0.4;
-    this.mainBorderPxl = 3;
-    this.altBorderPxl = 2;
+    this.miscSettings = miscSettings;
   }
 
   initStateHelper(width, height, rng, lambda) {
@@ -88,13 +84,13 @@ class GridController {
 
   initState({width, height, programLength, seed}) {
     const rng = new Mulberry32(seed);
-    const lambda = () => BrainfuckLogic.randomProgram(programLength, rng);
-    return this.initStateHelper(width, height, rng, lambda);
-  }
-
-  initStateToData(width, height, programLength, seed) {
-    const rng = new Mulberry32(seed);
-    const lambda = () => BrainfuckLogic.randomData(programLength, rng);
+    const initializationMode = this.miscSettings.initializationMode;
+    const lambda = () => {
+      if (initializationMode === "dataOnly") {
+        return BrainfuckLogic.randomData(programLength, rng);
+      }
+      return BrainfuckLogic.randomProgram(programLength, rng);
+    }
     return this.initStateHelper(width, height, rng, lambda);
   }
 
@@ -155,8 +151,8 @@ class GridController {
     if (!cellDiv) return;
     const canvas = document.createElement("canvas");
     canvas.id = `${x}_${y}`;
-    canvas.width = this.cellPxlSize;
-    canvas.height = this.cellPxlSize;
+    canvas.width = miscSettings.cellPxlSize;
+    canvas.height = miscSettings.cellPxlSize;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
@@ -166,7 +162,7 @@ class GridController {
   }
 
   highlightSelected(cellDiv, pos) {
-    if (cellDiv.style.border === `${this.altBorderPxl}px solid green`) {
+    if (cellDiv.style.border === `${miscSettings.altBorderPxl}px solid green`) {
       cellDiv.style.border = '';
     }
     if (!this.lastSelected.program) {
@@ -174,7 +170,7 @@ class GridController {
     }
     const rPos = this.lastSelected.lastReactedWith;
     if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
-      cellDiv.style.border = `${this.altBorderPxl}px solid green`;
+      cellDiv.style.border = `${miscSettings.altBorderPxl}px solid green`;
     }
   }
 
@@ -183,7 +179,7 @@ class GridController {
     this.highlightSelected(cellDiv, pos);
     const updatesSet = {};
     const sqrt = Math.sqrt(program.length);
-    const scalar = this.cellPxlSize / sqrt;
+    const scalar = miscSettings.cellPxlSize / sqrt;
     for (let i = 0; i < program.length; i++) {
       if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
         continue;
@@ -227,9 +223,9 @@ class GridController {
     container.innerHTML = "";
     const grid = document.createElement("div");
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, ${this.vmin}vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, ${this.vmin}vmin)`;
-    grid.style.gap = `${this.gap}vmin`;
+    grid.style.gridTemplateColumns = `repeat(${width}, ${miscSettings.vmin}vmin)`;
+    grid.style.gridTemplateRows = `repeat(${height}, ${miscSettings.vmin}vmin)`;
+    grid.style.gap = `${miscSettings.gap}vmin`;
     container.appendChild(grid);
     const uiItems = [];
     for (let x = 0; x < width; x++) {
@@ -345,7 +341,9 @@ class GridController {
         Object.assign(store.state, newState);
       } else if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
-        history.noteState(store.state);
+        if (this.miscSettings.storeStateWhenRunning) {
+          history.noteState(store.state);
+        }
       } else {
         return;
       }

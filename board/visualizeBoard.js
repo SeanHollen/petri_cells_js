@@ -1,15 +1,15 @@
 import { EventHandleHelper } from "../shared/handleEvents.js";
 import { GridController } from "./gridController.js"
 import { HistoryManager } from "./historyManager.js";
+import miscSettings from "../miscSettings.js";
 
-const HISTORY_FIDELITY = 50;
 const controller = new GridController();
 const initSpec = controller.getInitSpec();
 const store = {
   state: controller.initState(initSpec),
   uiItems: controller.initGridUI(initSpec.width, initSpec.height),
 };
-const history = new HistoryManager().init(HISTORY_FIDELITY, store.state);
+const history = new HistoryManager().init(miscSettings.historyFidelity, store.state);
 controller.updateGridUI(store);
 
 const buttonMapping = {
@@ -44,7 +44,7 @@ eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   const initSpec = controller.getInitSpec();
   store.uiItems = controller.initGridUI(initSpec.width, initSpec.height);
   store.state = controller.initState(initSpec);
-  history.init(HISTORY_FIDELITY, store.state);
+  history.init(miscSettings.historyFidelity, store.state);
   controller.updateGridUI(store);
   controller.stopRunning(store, runButton);
 });
@@ -83,6 +83,7 @@ eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
 });
 
 window.store = store;
-window.hist = history;
 window.HistoryManager = HistoryManager;
+window.hist = history;
 window.GridController = GridController;
+window.controller = controller;

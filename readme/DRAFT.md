@@ -131,10 +131,10 @@ I’m not sure which I like more. Despite the diversity of the the heterogeneous
 
 To save time, you may want to run the simulations on high speeds, but that can make it easy to miss important events. Therefore, these simulations store their history, allowing you to rewind (even run the simulation in reverse). 
 
-To save on space, grid states are saved in 50-epoch increments when you run the animation. If you’re still worried about space, you can remove the feature altogether by running this command in the console.
+To save on space, grid states are saved in 50-epoch increments when you run the animation. If you’re still worried about space, you can turn it off (for the most part) by running this command from the console.
 
 ```
-TODO
+controller.miscSettings.storeStateWhenRunning = false;
 ```
 
 **Interpreter randomizer**
@@ -157,7 +157,12 @@ As that cell reacts with other cells, the cells that it reacts with will receive
 
 When two cells are paired up, their programs are concatenated in sequence. This gives the first cell a big advantage over other cell, because the pointer starts at the beginning of the sequence, executing those instructions first, and it might not even reach the second half. To remedy this, I could introduce a variant which drops the pointer randomly somewhere, and ends when it makes a full rotation.
 
-TODO: implement this feature?
+You can turn on this setting by running this command in the console.
+
+```
+controller.miscSettings.toRandomPivot = true;
+```
+I have noticed anecdotally that complex life does not emerge when this setting is switched on. 
 
 **Super large grids**
 
