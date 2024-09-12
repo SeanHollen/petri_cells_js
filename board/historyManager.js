@@ -35,6 +35,7 @@ class HistoryManager {
   }
 
   addState(state) {
+    delete state.previousGrid;
     state = this.deepCopy(state);
     const pointer = this.lastStoredEpochPriorTo(state.epoch) + 1;
     this.history.splice(pointer, 0, state);

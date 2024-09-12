@@ -20,14 +20,15 @@ const buttonMapping = {
 };
 
 const backAction = () => {
+  const runSpec = controller.getRunSpec();
   store.state = controller.backState(history, store.state);
-  controller.updateGridUI(store);
+  controller.updateGridUI(store, runSpec.toRecolor);
 };
 const stepAction = () => {
   const runSpec = controller.getRunSpec();
   store.state = controller.updateState(store.state, runSpec);
   history.addState(store.state);
-  controller.updateGridUI(store);
+  controller.updateGridUI(store, runSpec.toRecolor);
 };
 
 const eventHandleHelper = new EventHandleHelper(buttonMapping, stepAction, backAction)

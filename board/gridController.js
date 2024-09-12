@@ -350,6 +350,7 @@ class GridController {
         return;
       }
       this.updateGridUI(store, runSpec.toRecolor);
+      runSpec.toRecolor = false;
     }, 1000 / speed);
   }
 
