@@ -1,3 +1,8 @@
 .section {
-    font-family: Helvetica;
+  font-family: Helvetica;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
