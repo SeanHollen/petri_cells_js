@@ -2,6 +2,7 @@ import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 import { Noise } from "./noise.js"
 import { Mulberry32, hashStringToInt } from "./rng.js";
+import miscSettings from "../miscSettings.js";
 
 /* TYPES
   class GridController: {
@@ -59,11 +60,7 @@ class GridController {
     this.lastSelected = {};
     const languageMapping = getLanguageMapping();
     this.logic = new BrainfuckLogic(languageMapping);
-    this.cellPxlSize = 32;
-    this.vmin = 3.5;
-    this.gap = 0.4;
-    this.mainBorderPxl = 3;
-    this.altBorderPxl = 2;
+    this.miscSettings = miscSettings;
   }
 
   initStateHelper(width, height, rng, lambda) {
@@ -87,13 +84,13 @@ class GridController {
 
   initState({width, height, programLength, seed}) {
     const rng = new Mulberry32(seed);
-    const lambda = () => BrainfuckLogic.randomProgram(programLength, rng);
-    return this.initStateHelper(width, height, rng, lambda);
-  }
-
-  initStateToData(width, height, programLength, seed) {
-    const rng = new Mulberry32(seed);
-    const lambda = () => BrainfuckLogic.randomData(programLength, rng);
+    const initializationMode = this.miscSettings.initializationMode;
+    const lambda = () => {
+      if (initializationMode === "dataOnly") {
+        return BrainfuckLogic.randomData(programLength, rng);
+      }
+      return BrainfuckLogic.randomProgram(programLength, rng);
+    }
     return this.initStateHelper(width, height, rng, lambda);
   }
 
@@ -154,8 +151,8 @@ class GridController {
     if (!cellDiv) return;
     const canvas = document.createElement("canvas");
     canvas.id = `${x}_${y}`;
-    canvas.width = this.cellPxlSize;
-    canvas.height = this.cellPxlSize;
+    canvas.width = miscSettings.cellPxlSize;
+    canvas.height = miscSettings.cellPxlSize;
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     const ctx = canvas.getContext("2d");
@@ -165,7 +162,7 @@ class GridController {
   }
 
   highlightSelected(cellDiv, pos) {
-    if (cellDiv.style.border === `${this.altBorderPxl}px solid green`) {
+    if (cellDiv.style.border === `${miscSettings.altBorderPxl}px solid green`) {
       cellDiv.style.border = '';
     }
     if (!this.lastSelected.program) {
@@ -173,7 +170,7 @@ class GridController {
     }
     const rPos = this.lastSelected.lastReactedWith;
     if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
-      cellDiv.style.border = `${this.altBorderPxl}px solid green`;
+      cellDiv.style.border = `${miscSettings.altBorderPxl}px solid green`;
     }
   }
 
@@ -182,7 +179,7 @@ class GridController {
     this.highlightSelected(cellDiv, pos);
     const updatesSet = {};
     const sqrt = Math.sqrt(program.length);
-    const scalar = this.cellPxlSize / sqrt;
+    const scalar = miscSettings.cellPxlSize / sqrt;
     for (let i = 0; i < program.length; i++) {
       if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
         continue;
@@ -226,9 +223,9 @@ class GridController {
     container.innerHTML = "";
     const grid = document.createElement("div");
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, ${this.vmin}vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, ${this.vmin}vmin)`;
-    grid.style.gap = `${this.gap}vmin`;
+    grid.style.gridTemplateColumns = `repeat(${width}, ${miscSettings.vmin}vmin)`;
+    grid.style.gridTemplateRows = `repeat(${height}, ${miscSettings.vmin}vmin)`;
+    grid.style.gap = `${miscSettings.gap}vmin`;
     container.appendChild(grid);
     const uiItems = [];
     for (let x = 0; x < width; x++) {
@@ -259,22 +256,21 @@ class GridController {
     const outRange = 2 * range + 1;
     const seen = new Array(width * height).fill(false);
 
-    this.tuples = this.tuples.sort(() => rng.random() - 0.5);
-    this.tuples.forEach((tuple) => {
-      let [x, y] = tuple
-      let xOff = Math.floor(rng.random() * outRange) - range;
-      let x2 = (x + xOff + height) % height;
-      let yOff = Math.floor(rng.random() * outRange) - range;
-      let y2 = (y + yOff + width) % width;
+    const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
+    tuples.forEach((tuple) => {
+      const [x, y] = tuple
+      const xOff = Math.floor(rng.random() * outRange) - range;
+      const x2 = (x + xOff + height) % height;
+      const yOff = Math.floor(rng.random() * outRange) - range;
+      const y2 = (y + yOff + width) % width;
       if (seen[x * width + y] || seen[x2 * width + y2]) {
         return;
       }
-      let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
-        grid[x][y],
-        grid[x2][y2],
-      );
-      grid[x][y] = newProgram1;
-      grid[x2][y2] = newProgram2;
+      const [new1, new2] = miscSettings.toRandomPivot 
+        ? this.logic.crossProgramsWithRotation(grid[x][y], grid[x2][y2], rng)
+        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2])
+      grid[x][y] = new1;
+      grid[x2][y2] = new2;
       seen[x * width + y] = true;
       seen[x2 * width + y2] = true;
       if (this.lastSelected.program) {
@@ -345,11 +341,14 @@ class GridController {
         Object.assign(store.state, newState);
       } else if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
-        history.noteState(store.state);
+        if (this.miscSettings.storeStateWhenRunning) {
+          history.noteState(store.state);
+        }
       } else {
         return;
       }
       this.updateGridUI(store, runSpec.toRecolor);
+      runSpec.toRecolor = false;
     }, 1000 / speed);
   }
 

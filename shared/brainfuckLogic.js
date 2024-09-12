@@ -190,7 +190,7 @@ class BrainfuckLogic {
     return { tape, pointer, head0, head1, loopStack, numReads };
   }
 
-  static randomData(size = 64, minInt = -256, maxInt = 0) {
+  static randomData(size = 64, rng = Math, minInt = -256, maxInt = 0) {
     return BrainfuckLogic.randomProgram(size, rng, minInt, maxInt);
   }
 
@@ -262,6 +262,19 @@ class BrainfuckLogic {
       const r = Math.max(0, x - 16);
       return `rgb(${r},${x},${x})`;
     }
+  }
+
+  crossProgramsWithRotation(a, b, rng) {
+    const aLen = a.length;
+    const combined = a.concat(b);
+    const p = Math.floor(rng.random() * combined.length);
+    const rotated = [...combined.slice(p), ...combined.slice(0, p)]
+    const out = this.executeSelfModifyingBrainfuck(rotated);
+    const p2 = combined.length - p;
+    const unRotated = [...out.slice(p2), ...out.slice(0, p2)]
+    a = unRotated.slice(0, aLen);
+    b = unRotated.slice(aLen);
+    return [a, b];
   }
 
   crossReactPrograms(a, b) {

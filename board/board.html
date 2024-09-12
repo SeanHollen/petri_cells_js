@@ -2,7 +2,7 @@
 <script type="module" src="/board/visualizeBoard.js"></script>
 <div>
     <div>
-        <h1>Petri Cells</h1>
+        <h1>Petri Cells BFF</h1>
         <p>
             An implementation of the simulation from
             <a href="https://arxiv.org/pdf/2406.19108" target=”_blank”>this paper</a> which explores how
@@ -18,12 +18,6 @@
 
         </p>
         <div>
-            <div class="controls">
-                <button class="control-item" id="board-back-button">Back</button>
-                <button class="control-item" id="board-step-button">Step</button>
-                <button class="control-item" id="board-run-button">Run</button>
-                <button class="control-item" id="board-restart-button">New</button>
-            </div>
             <div class="controls">
                 <form class="control-item form-item" id="bf-w">
                     <label for="bf-w">Width:</label>
@@ -59,7 +53,7 @@
             <div class="controls">
                 <form class="control-item form-item" id="grid-speed">
                     <label for="grid-speed">Steps/Second:</label>
-                    <input id="grid-speed" name="grid-speed" class="form-input medium-input" value="5"
+                    <input id="grid-speed" name="grid-speed" class="form-input medium-input" value="25"
                         type="number" oninput="formatNumber(this)" required>
                 </form>
                 <form class="control-item form-item" id="grid-range">
@@ -79,6 +73,12 @@
                     <input id="percent-noise-input" class="form-input small-input" value="3%" oninput="formatPercentage(this)"
                         id="percentage" name="percentage" min="0" max="100" step="1" required>
                 </form>
+            </div>
+            <div class="controls">
+                <button class="control-item" id="board-back-button">Back</button>
+                <button class="control-item" id="board-step-button">Step</button>
+                <button class="control-item" id="board-run-button">Run</button>
+                <button class="control-item" id="board-restart-button">New</button>
             </div>
         </div>
     </div>
