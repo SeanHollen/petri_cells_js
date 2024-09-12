@@ -2,6 +2,7 @@ import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 import { Noise } from "./noise.js"
 import { Mulberry32, hashStringToInt } from "./rng.js";
+import miscSettings from "../miscSettings.js";
 
 /* TYPES
   class GridController: {
@@ -261,20 +262,19 @@ class GridController {
 
     const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
     tuples.forEach((tuple) => {
-      let [x, y] = tuple
-      let xOff = Math.floor(rng.random() * outRange) - range;
-      let x2 = (x + xOff + height) % height;
-      let yOff = Math.floor(rng.random() * outRange) - range;
-      let y2 = (y + yOff + width) % width;
+      const [x, y] = tuple
+      const xOff = Math.floor(rng.random() * outRange) - range;
+      const x2 = (x + xOff + height) % height;
+      const yOff = Math.floor(rng.random() * outRange) - range;
+      const y2 = (y + yOff + width) % width;
       if (seen[x * width + y] || seen[x2 * width + y2]) {
         return;
       }
-      let [newProgram1, newProgram2] = this.logic.crossReactPrograms(
-        grid[x][y],
-        grid[x2][y2],
-      );
-      grid[x][y] = newProgram1;
-      grid[x2][y2] = newProgram2;
+      const [new1, new2] = miscSettings.toRandomPivot 
+        ? this.logic.crossProgramsWithRotation(grid[x][y], grid[x2][y2], rng)
+        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2])
+      grid[x][y] = new1;
+      grid[x2][y2] = new2;
       seen[x * width + y] = true;
       seen[x2 * width + y2] = true;
       if (this.lastSelected.program) {

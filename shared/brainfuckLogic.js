@@ -264,6 +264,18 @@ class BrainfuckLogic {
     }
   }
 
+  crossProgramsWithRotation(a, b, rng) {
+    const aLen = a.length;
+    const combined = a.concat(b);
+    const p = Math.floor(rng.random() * combined.length);
+    const rotated = [...combined.slice(p), ...combined.slice(-p)]
+    const out = this.executeSelfModifyingBrainfuck(rotated);
+    const unRotated = [...out.slice(-p), ...out.slice(p)]
+    a = unRotated.slice(0, aLen);
+    b = unRotated.slice(aLen);
+    return [a, b];
+  }
+
   crossReactPrograms(a, b) {
     const aLen = a.length;
     const combined = a.concat(b);
