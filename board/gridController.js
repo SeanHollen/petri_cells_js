@@ -143,7 +143,7 @@ class GridController {
       document.getElementById("cell-details-1").innerText = program.join(",");
       document.getElementById("cell-details-2").innerHTML =
         controller.toColoredFormat(program);
-      cellUI.cellDiv.style.border = `${controller.mainBorderPxl}px solid black`;
+      cellUI.cellDiv.style.border = `${controller.miscSettings.mainBorderPxl}px solid black`;
     };
   }
 

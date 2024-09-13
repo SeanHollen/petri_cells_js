@@ -35,3 +35,9 @@ function clickNoiseOption(selectedElement) {
     pctNoiseInput.value = "0.2%";
   }
 }
+
+function preventPageRefresh(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+  }
+}

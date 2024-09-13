@@ -6,3 +6,19 @@ img {
   max-width: 100%;
   height: auto;
 }
+
+.outer-section {
+  width: 900px;
+  box-shadow: 1px 3px 12px #EAEAEA;
+}
+
+.section {
+  font-family: "Libre-Franklin", "Lucida Grande", Arial, Sans-serif;
+  margin: auto;
+  font-size: 13px;
+}
+
+img {
+  display: block;
+  margin: auto;
+}
