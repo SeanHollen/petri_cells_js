@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "cssnano": "^7.0.6",
+    "postcss": "^8.4.45"
+  },
+  "dependencies": {
+    "puppeteer": "^23.3.0"
+  }
+}

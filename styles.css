@@ -76,7 +76,7 @@ button {
     padding: 0 17px;
     text-align: center;
     touch-action: manipulation;
-    width: 75px;
+    width: 80px;
 }
 
 button:focus {

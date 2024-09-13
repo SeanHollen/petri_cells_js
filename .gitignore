@@ -1,1 +1,5 @@
 readme/to_convert/*
+node_modules
+package-lock.json
+.cache/
+dist/

@@ -41,3 +41,9 @@ function preventPageRefresh(event) {
     event.preventDefault();
   }
 }
+
+window.formatPercentage = formatPercentage;
+window.formatNumber = formatNumber;
+window.formatInteger = formatInteger;
+window.clickNoiseOption = clickNoiseOption;
+window.preventPageRefresh = preventPageRefresh;
