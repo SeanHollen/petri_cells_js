@@ -8,28 +8,30 @@
     <link rel="stylesheet" href="./styles.css">
     <script src="./shared/inputValidation.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script> 
-    $(function () {
-        var includes = $('[data-include]')
-        $.each(includes, function () {
-            var file = $(this).data('include') + '.html'
-            $(this).load(file)
+    <script>
+        $(function () {
+            var includes = $('[data-include]')
+            $.each(includes, function () {
+                var file = $(this).data('include') + '.html'
+                $(this).load(file)
+            })
         })
-    })
-    </script> 
+    </script>
 </head>
 
 <body>
-    <div class="section">
-        <div data-include="./board/board"></div>
-    </div>
-    <hr class="divider">
-    </hr>
-    <div id="visualize-brainfuck" class="section">
-        <div data-include="./bfInterpreter/bfInterpreter"></div>
-    </div>
-    <div class="section">
-        <div data-include="./bfDescription/bfDescription"></div>
+    <div class="outer-section">
+        <div class="section">
+            <div data-include="./board/board"></div>
+        </div>
+        <hr class="divider">
+        </hr>
+        <div id="visualize-brainfuck" class="section">
+            <div data-include="./bfInterpreter/bfInterpreter"></div>
+        </div>
+        <div class="section">
+            <div data-include="./bfDescription/bfDescription"></div>
+        </div>
     </div>
 </body>
 

@@ -7,8 +7,15 @@ body {
     padding-bottom: 50px;
 }
 
+.outer-section {
+    width: 900px;
+    box-shadow: 1px 3px 12px #EAEAEA;
+    max-width: 100%;
+}
+
 .section {
     width: 700px;
+    margin: auto;
 }
 
 .controls {
@@ -100,6 +107,7 @@ button:active {
     0% {
         background-color: var(--on-click);
     }
+
     100% {
         background-color: var(--on-hover);
     }
