@@ -1,59 +1,10 @@
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
 import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 import { Noise } from "./noise.js"
 import { Mulberry32, hashStringToInt } from "./rng.js";
+import { Cell } from "./cell.js"
 import miscSettings from "../miscSettings.js";
-
-/* TYPES
-  class GridController: {
-    LastSelected lastSelected
-    BrainfuckLogic logic
-    function runInterval
-  }
-  type Store: {
-    State state
-    UiItems uiItems
-    TimeDirection timeDirection
-  }
-  type State: {
-    int epoch
-    int uniqueCells
-    Grid previousGrid
-    Grid grid
-    Mulberry32 rng
-  }
-  // running backwards, paused, running
-  type TimeDirection: enum(-1, 0, 1)
-  type UiItems: CellUI[]
-  type CellUI: {
-    HTML canvas
-    CanvasRenderingContext2D ctx
-    function eventListener
-    HTML cellDiv
-  }
-  type LastSelected: {
-    CellUI cellUI
-    Program program
-    Pos pos
-    Pos lastReactedWith
-  }
-  type Pos: {
-    int x
-    int y
-  }
-  type RunSpec: {
-    int range
-    float speed
-    NoiseAction noiseAction
-    float(0-100) pctNoise
-    BrainfuckLogic bfLogic
-    // whether the color scheme has changed, requiring a cancel of rendering tricks
-    boolean toRecolor
-  }
-  type NoiseAction: enum("none", "killCells", "killInstructions")
-  type Grid: Program[][]
-  type Program: int[64]
-  */
 
 class GridController {
   constructor() {
@@ -63,7 +14,9 @@ class GridController {
     this.miscSettings = miscSettings;
   }
 
-  initStateHelper(width, height, rng, lambda) {
+  initState({width, height, programLength, seed}) {
+    const rng = new Mulberry32(seed);
+    const initializationMode = this.miscSettings.initializationMode;
     this.tuples = [];
     for (let x = 0; x < height; x++) {
       for (let y = 0; y < width; y++) {
@@ -71,185 +24,25 @@ class GridController {
       }
     }
     const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, lambda)
+      Array.from({ length: width }, () => {
+        if (initializationMode === "dataOnly") {
+          return BrainfuckLogic.randomData(programLength, rng);
+        }
+        return BrainfuckLogic.randomProgram(programLength, rng);
+      })
     );
     return {
       epoch: 0,
-      uniqueCells: this.countUniqueCells(grid),
+      uniqueCells: width * height,
       grid: grid,
-      previousGrid: null,
       rng: rng,
     }
   }
 
-  initState({width, height, programLength, seed}) {
-    const rng = new Mulberry32(seed);
-    const initializationMode = this.miscSettings.initializationMode;
-    const lambda = () => {
-      if (initializationMode === "dataOnly") {
-        return BrainfuckLogic.randomData(programLength, rng);
-      }
-      return BrainfuckLogic.randomProgram(programLength, rng);
-    }
-    return this.initStateHelper(width, height, rng, lambda);
-  }
-
-  toColoredFormat(program) {
-    const asHrString = this.logic.toHumanReadableStr(program);
-    const asChars = asHrString.split("");
-    return program
-      .map((num, index) => {
-        const color = this.logic.intToColor(num);
-        // don't change the spacing, because it will effect the UI spacing
-        return `<div 
-                  class="char-instruction" 
-                  style="background-color:${color};"
-              >${asChars[index]}</div>`;
-      })
-      .join("");
-  }
-
-  countUniqueCells(grid) {
-    const set = new Set();
-    grid.forEach((row) => {
-      row.forEach((cell) => {
-        const stringified = JSON.stringify(cell);
-        set.add(stringified);
-      });
-    });
-    return set.size;
-  }
-
-  getCellClickEventListener(program, cellUI, pos) {
-    const controller = this;
-    return function (e) {
-      controller.exitCellEditMode();
-      const lastSelected = controller.lastSelected;
-      lastSelected.pos = pos;
-      if (lastSelected.program) {
-        lastSelected.cellUI.cellDiv.style.border = "none";
-        document.getElementById("cell-details").style.display = "none";
-        document.getElementById("copy-icon-validation").style.display = "none";
-        if (program == lastSelected.program) {
-          lastSelected.program = null;
-          return;
-        }
-      }
-      lastSelected.program = program;
-      lastSelected.cellUI = cellUI;
-
-      document.getElementById("cell-details").style.display = "inline-block";
-      document.getElementById("cell-details-0").innerText = `(${pos.x},${pos.y})`;
-      document.getElementById("cell-details-1").innerText = program.join(",");
-      document.getElementById("cell-details-2").innerHTML =
-        controller.toColoredFormat(program);
-      cellUI.cellDiv.style.border = `${controller.miscSettings.mainBorderPxl}px solid black`;
-    };
-  }
-
-  makeCanvas(cellDiv, { x, y }) {
-    if (!cellDiv) return;
-    const canvas = document.createElement("canvas");
-    canvas.id = `${x}_${y}`;
-    canvas.width = miscSettings.cellPxlSize;
-    canvas.height = miscSettings.cellPxlSize;
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    cellDiv.appendChild(canvas);
-    return { canvas, ctx, cellDiv };
-  }
-
-  highlightSelected(cellDiv, pos) {
-    if (cellDiv.style.border === `${miscSettings.altBorderPxl}px solid green`) {
-      cellDiv.style.border = '';
-    }
-    if (!this.lastSelected.program) {
-      return;
-    }
-    const rPos = this.lastSelected.lastReactedWith;
-    if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
-      cellDiv.style.border = `${miscSettings.altBorderPxl}px solid green`;
-    }
-  }
-
-  updateCellUI(program, prevProgram, cellUI, pos, toRecolor) {
-    const { canvas, ctx, eventListener, cellDiv } = cellUI;
-    this.highlightSelected(cellDiv, pos);
-    const updatesSet = {};
-    const sqrt = Math.sqrt(program.length);
-    const scalar = miscSettings.cellPxlSize / sqrt;
-    for (let i = 0; i < program.length; i++) {
-      if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
-        continue;
-      }
-      let recX = (i % sqrt) * scalar;
-      let recY = Math.floor(i / sqrt) * scalar;
-      const color = this.logic.intToColor(program[i]);
-      const updates = [recX, recY];
-      if (!updatesSet[color]) {
-        updatesSet[color] = [];
-      }
-      updatesSet[color].push(updates);
-    }
-    Object.keys(updatesSet).forEach((color) => {
-      ctx.beginPath();
-      ctx.fillStyle = color;
-      updatesSet[color].forEach((update) => {
-        const [recX, recY] = update;
-        ctx.rect(recX, recY, scalar, scalar);
-      });
-      ctx.fill();
-    });
-
-    if (eventListener) {
-      canvas.removeEventListener("mousedown", eventListener);
-    }
-    const newEventListener = this.getCellClickEventListener(program, cellUI, pos);
-    canvas.addEventListener("mousedown", newEventListener);
-    cellUI.eventListener = newEventListener;
-  }
-
-  initGridUI(width, height) {
-    document.getElementById("copy-icon").addEventListener("click", (e) => {
-      navigator.clipboard.writeText(
-        this.logic.toHumanReadableStr(this.lastSelected.program)
-      );
-      document.getElementById("copy-icon-validation").style.display =
-        "inline-block";
-    });
-    const container = document.getElementById("grid-container");
-    container.innerHTML = "";
-    const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, ${miscSettings.vmin}vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, ${miscSettings.vmin}vmin)`;
-    grid.style.gap = `${miscSettings.gap}vmin`;
-    container.appendChild(grid);
-    const uiItems = [];
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        const cell = document.createElement("div");
-        cell.style.backgroundColor = "#fff";
-        cell.style.cursor = "pointer";
-        grid.appendChild(cell);
-        let cellUI = this.makeCanvas(cell, { x, y });
-        uiItems.push(cellUI);
-      }
-    }
-    return uiItems;
-  }
-
-  deepCopy(grid) {
-    return grid.map((row) => {
-      return [...row];
-    });
-  }
-
-  updateState(state, { range, noiseAction, pctNoise, bfLogic }) {
+  updateState(state, runSpec) {
+    const { range, noiseAction, pctNoise, bfLogic } = runSpec;
     this.logic = bfLogic;
-    let grid = this.deepCopy(state.grid);
+    const grid = state.grid;
     const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
@@ -289,36 +82,115 @@ class GridController {
     return {
       rng: rng,
       epoch: state.epoch + 1,
-      uniqueCells: this.countUniqueCells(grid),
-      previousGrid: state.grid,
+      uniqueCells: this._countUniqueCells(grid),
       grid: grid,
     };
+  }
+
+  _countUniqueCells(grid) {
+    const set = new Set();
+    grid.forEach((row) => {
+      row.forEach((cell) => {
+        const stringified = JSON.stringify(cell);
+        set.add(stringified);
+      });
+    });
+    return set.size;
   }
 
   backState(history, state) {
     return history.get(state.epoch - 1);
   }
 
+  clear(uiItems) {
+    const { cells, scene } = uiItems;
+    cells.forEach((cell) => {
+      cell.removeCell(scene)
+    })
+  }
+
+  initGridUI() {
+    this._addCopyIconEventListener();
+    const SIZE = 650;
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(
+      SIZE / -2, SIZE / 2, SIZE / 2, SIZE / -2, 0.1, 10
+    );
+    camera.position.z = 1;
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(SIZE, SIZE);
+    renderer.setClearColor(0xf5f5dc, 1);
+    const canvasContainer = document.getElementById("grid-container");
+    canvasContainer.appendChild(renderer.domElement);
+    return { scene, camera, renderer};
+  }
+
+  _addCopyIconEventListener() {
+    document.getElementById("copy-icon").addEventListener("click", (e) => {
+      navigator.clipboard.writeText(
+        this.logic.toHumanReadableStr(this.lastSelected.program)
+      );
+      document.getElementById("copy-icon-validation").style.display =
+        "inline-block";
+    });
+  }
+
   updateGridUI({ state, uiItems }, toRecolor) {
-    const { epoch, uniqueCells, grid, previousGrid } = state;
-    for (let x = 0; x < grid.length; x++) {
-      for (let y = 0; y < grid[x].length; y++) {
-        let program = grid[x][y];
-        let prevProgram = previousGrid ? previousGrid[x][y] : null;
-        let cellUI = uiItems[x * grid[x].length + y];
-        this.updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor);
-      }
+    const { epoch, uniqueCells, grid } = state;
+    const { renderer, scene, camera } = uiItems;
+    this.updateCounters(epoch, uniqueCells);
+    if (!uiItems.cells || toRecolor) {
+      uiItems.cells = this.createGridCells(grid, scene);
+    } else {
+      this.updateGridCells(grid, uiItems.cells);
     }
+    renderer.render(scene, camera);
+  }
+
+  reRender(uiItems) {
+    const { renderer, scene, camera } = uiItems;
+    renderer.render(scene, camera);
+  }
+
+  updateCounters(epoch, uniqueCells) {
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  stopRunning(store, button) {
-    store.timeDirection = 0;
-    button.textContent = "Run";
-    clearInterval(this.runInterval);
+  createGridCells(grid, scene) {
+    const cells = [];
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        const program = grid[x][y];
+        const cell = new Cell(x, y)
+        cell.createMesh(
+          program, 
+          grid.length, 
+          grid[x].length,
+          scene,
+          this.logic
+        );
+        cells.push(cell);
+      }
+    }
+    return cells;
+  }
+
+  updateGridCells(grid, cells) {
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        const program = grid[x][y];
+        const i = x * grid[x].length + y;
+        const cell = cells[i];
+        cell.updateMesh(program, this.logic);
+      }
+    }
+  }
+
+  clickGrid(clickedX, clickedY, uiItems) {
+
   }
 
   toggleRun(button, store, history, runSpec) {
@@ -350,6 +222,12 @@ class GridController {
       this.updateGridUI(store, runSpec.toRecolor);
       runSpec.toRecolor = false;
     }, 1000 / speed);
+  }
+
+  stopRunning(store, button) {
+    store.timeDirection = 0;
+    button.textContent = "Run";
+    clearInterval(this.runInterval);
   }
 
   enterCellEditMode() {
@@ -414,12 +292,27 @@ class GridController {
     this.lastSelected.program = program;
     document.getElementById("cell-details-1").innerText = program.join(",");
     document.getElementById("cell-details-2").innerHTML =
-      this.toColoredFormat(program);
+      this._toColoredFormat(program);
     const { x, y } = this.lastSelected.pos;
     const prevProgram = grid[x][y];
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y }, false);
+    this.updateCell(program, prevProgram, this.lastSelected.cell);
+  }
+
+  _toColoredFormat(program) {
+    const asHrString = this.logic.toHumanReadableStr(program);
+    const asChars = asHrString.split("");
+    return program
+      .map((num, index) => {
+        const color = this.logic.intToColor(num);
+        // don't change the spacing, because it will effect the UI spacing
+        return `<div 
+                  class="char-instruction" 
+                  style="background-color:${color};"
+              >${asChars[index]}</div>`;
+      })
+      .join("");
   }
 
   getRunSpec() {
@@ -458,7 +351,7 @@ class GridController {
     const height = parseInt(inputtedHeight) || 20;
     const inputtedProgramLength = document.getElementById("cell-size").value;
     const programLength = parseInt(inputtedProgramLength) || 64;
-    const seed = this.getSeed()
+    const seed = this.getSeed();
     return { width, height, programLength, seed };
   }
 
