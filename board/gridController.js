@@ -59,7 +59,7 @@ class GridController {
       if (seen[x * width + y] || seen[x2 * width + y2]) {
         return;
       }
-      const [new1, new2] = miscSettings.toRandomPivot 
+      const [new1, new2] = this.miscSettings.toRandomPivot 
         ? this.logic.crossProgramsWithRotation(grid[x][y], grid[x2][y2], rng)
         : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2])
       grid[x][y] = new1;
@@ -111,15 +111,15 @@ class GridController {
 
   initGridUI() {
     this._addCopyIconEventListener();
-    const SIZE = 650;
+    const { screenSize } = this.miscSettings;
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(
-      SIZE / -2, SIZE / 2, SIZE / 2, SIZE / -2, 0.1, 10
+      screenSize / -2, screenSize / 2, screenSize / 2, screenSize / -2, 0.1, 10
     );
     camera.position.z = 1;
     const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(SIZE, SIZE);
-    renderer.setClearColor(0xf5f5dc, 1);
+    renderer.setSize(screenSize, screenSize);
+    renderer.setClearColor(0xffffff, 1);
     const canvasContainer = document.getElementById("grid-container");
     canvasContainer.appendChild(renderer.domElement);
     return { scene, camera, renderer};
@@ -137,14 +137,13 @@ class GridController {
 
   updateGridUI({ state, uiItems }, toRecolor) {
     const { epoch, uniqueCells, grid } = state;
-    const { renderer, scene, camera } = uiItems;
     this.updateCounters(epoch, uniqueCells);
     if (!uiItems.cells || toRecolor) {
-      uiItems.cells = this.createGridCells(grid, scene);
+      uiItems.cells = this.createGridCells(grid, uiItems.scene);
     } else {
       this.updateGridCells(grid, uiItems.cells);
     }
-    renderer.render(scene, camera);
+    this.reRender(uiItems)
   }
 
   reRender(uiItems) {
@@ -189,10 +188,6 @@ class GridController {
     }
   }
 
-  clickGrid(clickedX, clickedY, uiItems) {
-
-  }
-
   toggleRun(button, store, history, runSpec) {
     let speed = runSpec.speed;
     if (store.timeDirection === 1 || store.timeDirection === -1) {
@@ -208,16 +203,18 @@ class GridController {
 
     button.textContent = "Pause";
     this.runInterval = setInterval(() => {
+      if (store.timeDirection == 0) {
+        return;
+      }
       if (store.timeDirection === -1) {
         const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
-      } else if (store.timeDirection === 1) {
+      } 
+      if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
         if (this.miscSettings.storeStateWhenRunning) {
           history.noteState(store.state);
         }
-      } else {
-        return;
       }
       this.updateGridUI(store, runSpec.toRecolor);
       runSpec.toRecolor = false;
@@ -264,7 +261,7 @@ class GridController {
     });
   }
 
-  editProgramWithNumsForm(state, inputVal) {
+  editProgramWithNumsForm(state, inputVal, uiItems) {
     const isIntegerFormat = /^[,\-\d]+$/.test(inputVal);
     if (!isIntegerFormat) return;
     const intArr = inputVal.split(",").map((num) => parseInt(num));
@@ -272,32 +269,30 @@ class GridController {
       (i) => !isNaN(i) && i !== null && i !== undefined
     );
     if (!validValues) return;
-    this.submitProgram(intArr, state.grid);
+    this.submitProgram(intArr, state.grid, uiItems);
   }
 
-  editProgramWithColorsForm(state, inputVal) {
+  editProgramWithColorsForm(state, inputVal, uiItems) {
     const textNoWhitespace = inputVal.replace(/\s+/g, "");
     const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
       textNoWhitespace
     );
     if (!isHrBfFormat) return;
     const intArr = this.logic.fromHumanReadableStr(textNoWhitespace);
-    this.submitProgram(intArr, state.grid);
+    this.submitProgram(intArr, state.grid, uiItems);
   }
 
-  submitProgram(program, grid) {
+  submitProgram(program, grid, uiItems) {
     const typicalProgramLength = grid[0][0].length;
     program = program.slice(0, typicalProgramLength);
     while (program.length < typicalProgramLength) program.push(0);
     this.lastSelected.program = program;
-    document.getElementById("cell-details-1").innerText = program.join(",");
-    document.getElementById("cell-details-2").innerHTML =
-      this._toColoredFormat(program);
+    this.showSelectedCellDetails(this.lastSelected.pos, program);
     const { x, y } = this.lastSelected.pos;
-    const prevProgram = grid[x][y];
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.updateCell(program, prevProgram, this.lastSelected.cell);
+    this.lastSelected.cell.updateMesh(program, this.logic);
+    this.reRender(uiItems);
   }
 
   _toColoredFormat(program) {
@@ -370,6 +365,58 @@ class GridController {
     })
 
     return grid;
+  }
+
+  onMouseDown(event, grid, uiItems) {
+    const { renderer, camera, scene, cells } = uiItems;
+    const { screenSize } = this.miscSettings;
+    const mouse = new THREE.Vector2();
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
+    mouse.y = - ((event.clientY - rect.top) / screenSize) * 2 + 1;
+  
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+  
+    const intersects = raycaster.intersectObjects(scene.children);
+    if (intersects.length > 0) {
+      const object = intersects[0].object;
+      const pos = object.userData.gridPosition;
+      const { x, y } = pos;
+      const program = grid[x][y];
+      const cell = cells[x * grid.length + y];
+      this.clickGrid(pos, program, cell);
+    }
+  }
+
+  clickGrid(pos, program, cell) {
+    this.exitCellEditMode();
+    if (!!this.lastSelected.cell) {
+      this.lastSelected.cell.markNotSelected();
+      this.hideSelectedCellDetails();
+    }
+    if (this.lastSelected.program == program) {
+      this.lastSelected = {};
+      return;
+    }
+    this.lastSelected = { program, cell, pos };
+    this.showSelectedCellDetails(pos, program)
+    cell.markSelected();
+  };
+
+  showSelectedCellDetails(pos, program) {
+    const posStr = `(${pos.x},${pos.y})`;
+    const coloredDescription = this._toColoredFormat(program);
+    const intFormat = program.join(",");
+    document.getElementById("cell-details").style.display = "inline-block";
+    document.getElementById("cell-details-0").innerText = posStr;
+    document.getElementById("cell-details-1").innerText = intFormat;
+    document.getElementById("cell-details-2").innerHTML = coloredDescription;
+  }
+
+  hideSelectedCellDetails() {
+    document.getElementById("cell-details").style.display = "none";
+    document.getElementById("copy-icon-validation").style.display = "none";
   }
 }
 

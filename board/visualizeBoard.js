@@ -2,6 +2,7 @@ import { EventHandleHelper } from "../shared/handleEvents.js";
 import { GridController } from "./gridController.js"
 import { HistoryManager } from "./historyManager.js";
 import miscSettings from "../miscSettings.js";
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
 
 const controller = new GridController();
 const initSpec = controller.getInitSpec();
@@ -61,7 +62,7 @@ document
     if (e.key === "Enter") {
       e.preventDefault();
       const inputVal = document.getElementById("cell-details-1-edit-input").value
-      controller.editProgramWithNumsForm(store.state, inputVal);
+      controller.editProgramWithNumsForm(store.state, inputVal, store.uiItems);
     }
   });
 document
@@ -70,23 +71,30 @@ document
     if (e.key === "Enter") {
       e.preventDefault();
       const inputVal = document.getElementById("cell-details-2-edit-input").value;
-      controller.editProgramWithColorsForm(store.state, inputVal);
+      controller.editProgramWithColorsForm(store.state, inputVal, store.uiItems);
     }
   });
 eventHandleHelper.addEventListener("cell-details-1-edit-submit", () => {
   const inputVal = document.getElementById("cell-details-1-edit-input").value
-  controller.editProgramWithNumsForm(store.state, inputVal);
+  controller.editProgramWithNumsForm(store.state, inputVal, store.uiItems);
 });
 eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
   const inputVal = document.getElementById("cell-details-2-edit-input").value;
-  controller.editProgramWithColorsForm(store.state, inputVal);
+  controller.editProgramWithColorsForm(store.state, inputVal, store.uiItems);
 });
 
 /* zooming, panning */
 
+let { renderer, camera } = store.uiItems;
+
+/* clicking */
+
 let isDragging = false;
 let prevMouse = null;
-let { renderer, camera } = store.uiItems;
+
+renderer.domElement.addEventListener('mousedown', (e) => { 
+  controller.onMouseDown(e, store.state.grid, store.uiItems)
+}, false);
 
 window.addEventListener('mousedown', (event) => {
     isDragging = true;
@@ -100,35 +108,70 @@ window.addEventListener('mouseup', (event) => {
     isDragging = false;
 });
 
-window.addEventListener('mousemove', (event) => {
-    if (!isDragging) return
-    const deltaMove = {
-        x: event.clientX - prevMouse.x,
-        y: event.clientY - prevMouse.y
-    };
+function mouseOutOfBounds(rect, event) {
+  const mouseX = event.clientX;
+  const mouseY = event.clientY;
+  return mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom;
+}
 
-    camera.position.x -= deltaMove.x;
-    camera.position.y += deltaMove.y;
-    prevMouse = {
-        x: event.clientX,
-        y: event.clientY
-    };
-    controller.reRender(store.uiItems);
+window.addEventListener('mousemove', (event) => {
+  if (!isDragging) return
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (mouseOutOfBounds(rect, event)) {
+    return;
+  }
+
+  const deltaMove = {
+    x: event.clientX - prevMouse.x,
+    y: event.clientY - prevMouse.y
+  };
+
+  camera.position.x -= deltaMove.x / camera.zoom;
+  camera.position.y += deltaMove.y / camera.zoom;
+  prevMouse = {
+    x: event.clientX,
+    y: event.clientY
+  };
+  controller.reRender(store.uiItems);
+});
+
+// right-click
+window.addEventListener('contextmenu', (event) => {
+  isDragging = false;
+});
+
+// losing focus
+window.addEventListener('blur', () => {
+  isDragging = false;
 });
 
 renderer.domElement.addEventListener('wheel', (event) => {
-    const ZOOM_SPEED = 0.005;
-    const rect = renderer.domElement.getBoundingClientRect();
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
-    if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
-      event.preventDefault();
-      camera.zoom -= event.deltaY * ZOOM_SPEED;
-      camera.zoom = Math.max(camera.zoom, 0.1);
-      camera.updateProjectionMatrix();
-      // console.log(camera.zoom);
-      controller.reRender(store.uiItems);
-    }
+  const { zoomSpeed } = miscSettings;
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (mouseOutOfBounds(rect, event)) {
+    return;
+  }
+  const mouseX = event.clientX;
+  const mouseY = event.clientY;
+  event.preventDefault();
+  // I don't really understand how this block of code works. chatGPT wrote it.
+  const mouseNDCX = ((mouseX - rect.left) / rect.width) * 2 - 1;
+  const mouseNDCY = -((mouseY - rect.top) / rect.height) * 2 + 1;
+  const mouseVector = new THREE.Vector3(mouseNDCX, mouseNDCY, 0);
+  mouseVector.unproject(camera);
+  const zoomFactor = 1 + event.deltaY * zoomSpeed;
+  const newZoom = camera.zoom / zoomFactor;
+  if (newZoom <= 0.01 || newZoom > 200) {
+    return;
+  }
+  const scale = (1 - newZoom / camera.zoom);
+  camera.position.x -= (mouseVector.x - camera.position.x) * scale;
+  camera.position.y -= (mouseVector.y - camera.position.y) * scale;
+
+  camera.zoom = newZoom;
+  camera.updateProjectionMatrix();
+  controller.reRender(store.uiItems);
 });
 
 /* adding to window */

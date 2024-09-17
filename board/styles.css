@@ -50,3 +50,7 @@
 #cell-details-1 {
     width: 700px;
 }
+
+canvas {
+    border: 1px solid black;
+}

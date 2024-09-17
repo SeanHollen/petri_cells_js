@@ -6,6 +6,6 @@ export default {
     historyFidelity: 50,
     cellPxlSize: 30,
     cellPaddingPxl: 4,
-    mainBorderPxl: 3,
-    altBorderPxl: 2
+    screenSize: 650,
+    zoomSpeed: 0.005,
 };

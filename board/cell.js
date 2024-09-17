@@ -25,6 +25,7 @@ class Cell {
     const material = new THREE.MeshBasicMaterial({ vertexColors: true });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(xPoint, yPoint, 0);
+    mesh.userData.gridPosition = { x: this.x, y: this.y };
     this.mesh = mesh;
     scene.add(this.mesh);
   }
@@ -35,16 +36,17 @@ class Cell {
     const sqrt = Math.floor(Math.sqrt(program.length));
     const tileSize = cellSize / sqrt;
     let index = 0;
-    for (let x = 0; x < sqrt; x++) {
-      for (let y = 0; y < sqrt; y++) {
+    for (let y = 0; y < sqrt; y++) {
+      for (let x = 0; x < sqrt; x++) {
         const xPoint = (tileSize * x) - (cellSize / 2);
-        const yPoint = (tileSize * y) - (cellSize / 2);
+        // const yPoint = (tileSize * y) - (cellSize / 2);
+        const yPoint = ((sqrt - 1 - y) * tileSize) - (cellSize / 2);
         // 1 vertex for each of 4 corners
-        let squareVertices = [
-          xPoint, yPoint,
-          (xPoint + tileSize), yPoint, 
-          (xPoint + tileSize), (yPoint + tileSize),
-          xPoint, (yPoint + tileSize),
+        const squareVertices = [
+          xPoint, yPoint, 0,
+          (xPoint + tileSize), yPoint, 0, 
+          (xPoint + tileSize), (yPoint + tileSize), 0,
+          xPoint, (yPoint + tileSize), 0,
         ];
         vertices.push(...squareVertices);
         indices.push(index, index + 1, index + 2);
@@ -53,11 +55,8 @@ class Cell {
       }
     }
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(
-      vertices, 2
+      vertices, 3
     ));
-    if (vertices.some(vertex => isNaN(vertex))) {
-        console.error('SOME ARE NAN!');
-    }
     geometry.setIndex(indices);
   }
 
@@ -82,14 +81,13 @@ class Cell {
 
   updateMesh(program, logic) {
     const colors = this.mesh.geometry.attributes.color;
-    let idx = 0;
     for (let i = 0; i < program.length; i++) {
       const instruction = program[i];
       if (this.prevProgram && this.prevProgram[i] == instruction) continue;
       const color = this._threeColor(instruction, logic);
       for (let x = 0; x < 4; x++) {
+        const idx = i * 4 + x;
         colors.setXYZ(idx, color.r, color.g, color.b);
-        idx++;
       }
     }
     colors.needsUpdate = true;
@@ -103,6 +101,14 @@ class Cell {
 
   removeCell(scene) {
     scene.remove(this.mesh);
+  }
+
+  markSelected() {
+
+  }
+
+  markNotSelected() {
+
   }
 }
 
