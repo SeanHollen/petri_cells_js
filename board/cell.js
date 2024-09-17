@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js";
 import miscSettings from "../miscSettings.js";
 
 class Cell {
@@ -6,7 +6,7 @@ class Cell {
     this.x = x;
     this.y = y;
   }
-  
+
   createMesh(program, gridWidth, gridHeight, scene, logic) {
     const rowLen = Math.floor(Math.sqrt(program.length));
     const cellSize = miscSettings.cellPxlSize;
@@ -38,15 +38,23 @@ class Cell {
     let index = 0;
     for (let y = 0; y < sqrt; y++) {
       for (let x = 0; x < sqrt; x++) {
-        const xPoint = (tileSize * x) - (cellSize / 2);
+        const xPoint = tileSize * x - cellSize / 2;
         // const yPoint = (tileSize * y) - (cellSize / 2);
-        const yPoint = ((sqrt - 1 - y) * tileSize) - (cellSize / 2);
+        const yPoint = (sqrt - 1 - y) * tileSize - cellSize / 2;
         // 1 vertex for each of 4 corners
         const squareVertices = [
-          xPoint, yPoint, 0,
-          (xPoint + tileSize), yPoint, 0, 
-          (xPoint + tileSize), (yPoint + tileSize), 0,
-          xPoint, (yPoint + tileSize), 0,
+          xPoint,
+          yPoint,
+          0,
+          xPoint + tileSize,
+          yPoint,
+          0,
+          xPoint + tileSize,
+          yPoint + tileSize,
+          0,
+          xPoint,
+          yPoint + tileSize,
+          0,
         ];
         vertices.push(...squareVertices);
         indices.push(index, index + 1, index + 2);
@@ -54,9 +62,10 @@ class Cell {
         index += 4;
       }
     }
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(
-      vertices, 3
-    ));
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
     geometry.setIndex(indices);
   }
 
@@ -73,9 +82,10 @@ class Cell {
         }
       }
     }
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(
-      tileColors, 3
-    ));
+    geometry.setAttribute(
+      "color",
+      new THREE.Float32BufferAttribute(tileColors, 3)
+    );
     this.prevProgram = program;
   }
 
@@ -103,13 +113,9 @@ class Cell {
     scene.remove(this.mesh);
   }
 
-  markSelected() {
+  markSelected() {}
 
-  }
-
-  markNotSelected() {
-
-  }
+  markNotSelected() {}
 }
 
 export { Cell };

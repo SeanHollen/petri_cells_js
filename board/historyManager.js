@@ -49,4 +49,4 @@ class HistoryManager {
   }
 }
 
-export { HistoryManager }
+export { HistoryManager };

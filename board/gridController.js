@@ -1,9 +1,9 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js";
 import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
-import { Noise } from "./noise.js"
+import { Noise } from "./noise.js";
 import { Mulberry32, hashStringToInt } from "./rng.js";
-import { Cell } from "./cell.js"
+import { Cell } from "./cell.js";
 import miscSettings from "../miscSettings.js";
 
 class GridController {
@@ -14,7 +14,7 @@ class GridController {
     this.miscSettings = miscSettings;
   }
 
-  initState({width, height, programLength, seed}) {
+  initState({ width, height, programLength, seed }) {
     const rng = new Mulberry32(seed);
     const initializationMode = this.miscSettings.initializationMode;
     this.tuples = [];
@@ -36,7 +36,7 @@ class GridController {
       uniqueCells: width * height,
       grid: grid,
       rng: rng,
-    }
+    };
   }
 
   updateState(state, runSpec) {
@@ -51,7 +51,7 @@ class GridController {
 
     const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
     tuples.forEach((tuple) => {
-      const [x, y] = tuple
+      const [x, y] = tuple;
       const xOff = Math.floor(rng.random() * outRange) - range;
       const x2 = (x + xOff + height) % height;
       const yOff = Math.floor(rng.random() * outRange) - range;
@@ -59,9 +59,9 @@ class GridController {
       if (seen[x * width + y] || seen[x2 * width + y2]) {
         return;
       }
-      const [new1, new2] = this.miscSettings.toRandomPivot 
+      const [new1, new2] = this.miscSettings.toRandomPivot
         ? this.logic.crossProgramsWithRotation(grid[x][y], grid[x2][y2], rng)
-        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2])
+        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2]);
       grid[x][y] = new1;
       grid[x2][y2] = new2;
       seen[x * width + y] = true;
@@ -69,9 +69,9 @@ class GridController {
       if (this.lastSelected.program) {
         const lastSelectedPos = this.lastSelected.pos;
         if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = {x: x2, y: y2};
+          this.lastSelected.lastReactedWith = { x: x2, y: y2 };
         } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = {x: x, y: y};
+          this.lastSelected.lastReactedWith = { x: x, y: y };
         }
       }
     });
@@ -105,8 +105,8 @@ class GridController {
   clear(uiItems) {
     const { cells, scene } = uiItems;
     cells.forEach((cell) => {
-      cell.removeCell(scene)
-    })
+      cell.removeCell(scene);
+    });
   }
 
   initGridUI() {
@@ -114,7 +114,12 @@ class GridController {
     const { screenSize } = this.miscSettings;
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(
-      screenSize / -2, screenSize / 2, screenSize / 2, screenSize / -2, 0.1, 10
+      screenSize / -2,
+      screenSize / 2,
+      screenSize / 2,
+      screenSize / -2,
+      0.1,
+      10
     );
     camera.position.z = 1;
     const renderer = new THREE.WebGLRenderer();
@@ -122,7 +127,7 @@ class GridController {
     renderer.setClearColor(0xffffff, 1);
     const canvasContainer = document.getElementById("grid-container");
     canvasContainer.appendChild(renderer.domElement);
-    return { scene, camera, renderer};
+    return { scene, camera, renderer };
   }
 
   _addCopyIconEventListener() {
@@ -143,7 +148,7 @@ class GridController {
     } else {
       this.updateGridCells(grid, uiItems.cells);
     }
-    this.reRender(uiItems)
+    this.reRender(uiItems);
   }
 
   reRender(uiItems) {
@@ -163,10 +168,10 @@ class GridController {
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
         const program = grid[x][y];
-        const cell = new Cell(x, y)
+        const cell = new Cell(x, y);
         cell.createMesh(
-          program, 
-          grid.length, 
+          program,
+          grid.length,
           grid[x].length,
           scene,
           this.logic
@@ -196,7 +201,7 @@ class GridController {
     }
     if (speed < 0) {
       store.timeDirection = -1;
-      speed *= -1
+      speed *= -1;
     } else if (speed > 0) {
       store.timeDirection = 1;
     }
@@ -209,7 +214,7 @@ class GridController {
       if (store.timeDirection === -1) {
         const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
-      } 
+      }
       if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
         if (this.miscSettings.storeStateWhenRunning) {
@@ -243,7 +248,9 @@ class GridController {
     const numInput = document.getElementById("cell-details-1-edit-input");
     const colorsInput = document.getElementById("cell-details-2-edit-input");
     numInput.value = this.lastSelected.program.join(",");
-    colorsInput.value = this.logic.toHumanReadableStr(this.lastSelected.program);
+    colorsInput.value = this.logic.toHumanReadableStr(
+      this.lastSelected.program
+    );
   }
 
   exitCellEditMode() {
@@ -362,7 +369,7 @@ class GridController {
       } while (placed.has(`${x}${x}`));
       placed.add(`${x}${y}`);
       grid[x][y] = program;
-    })
+    });
 
     return grid;
   }
@@ -373,11 +380,11 @@ class GridController {
     const mouse = new THREE.Vector2();
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
-    mouse.y = - ((event.clientY - rect.top) / screenSize) * 2 + 1;
-  
+    mouse.y = -((event.clientY - rect.top) / screenSize) * 2 + 1;
+
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
-  
+
     const intersects = raycaster.intersectObjects(scene.children);
     if (intersects.length > 0) {
       const object = intersects[0].object;
@@ -387,6 +394,57 @@ class GridController {
       const cell = cells[x * grid.length + y];
       this.clickGrid(pos, program, cell);
     }
+  }
+
+  zoom(event, uiItems) {
+    const { zoomSpeed } = this.miscSettings;
+    const { renderer, camera } = uiItems;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (this.mouseOutOfBounds(rect, event)) return;
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    event.preventDefault();
+    const mouseNDCX = ((mouseX - rect.left) / rect.width) * 2 - 1;
+    const mouseNDCY = -((mouseY - rect.top) / rect.height) * 2 + 1;
+    const mouseVector = new THREE.Vector3(mouseNDCX, mouseNDCY, 0);
+    mouseVector.unproject(camera);
+    const zoomFactor = 1 + event.deltaY * zoomSpeed;
+    const newZoom = camera.zoom / zoomFactor;
+    if (newZoom <= 0.01 || newZoom > 200) return;
+    const scale = 1 - newZoom / camera.zoom;
+    camera.position.x -= (mouseVector.x - camera.position.x) * scale;
+    camera.position.y -= (mouseVector.y - camera.position.y) * scale;
+
+    camera.zoom = newZoom;
+    camera.updateProjectionMatrix();
+    this.reRender(uiItems);
+  }
+
+  drag(event, uiItems, prevMouse) {
+    const { camera, renderer } = uiItems;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (this.mouseOutOfBounds(rect, event)) return;
+
+    const deltaMove = {
+      x: event.clientX - prevMouse.x,
+      y: event.clientY - prevMouse.y,
+    };
+
+    camera.position.x -= deltaMove.x / camera.zoom;
+    camera.position.y += deltaMove.y / camera.zoom;
+    this.reRender(store.uiItems);
+    return 
+  }
+
+  mouseOutOfBounds(rect, event) {
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    return (
+      mouseX < rect.left ||
+      mouseX > rect.right ||
+      mouseY < rect.top ||
+      mouseY > rect.bottom
+    );
   }
 
   clickGrid(pos, program, cell) {
@@ -400,9 +458,9 @@ class GridController {
       return;
     }
     this.lastSelected = { program, cell, pos };
-    this.showSelectedCellDetails(pos, program)
+    this.showSelectedCellDetails(pos, program);
     cell.markSelected();
-  };
+  }
 
   showSelectedCellDetails(pos, program) {
     const posStr = `(${pos.x},${pos.y})`;
@@ -420,4 +478,4 @@ class GridController {
   }
 }
 
-export { GridController }
+export { GridController };
