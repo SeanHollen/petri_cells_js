@@ -42,7 +42,7 @@ class GridController {
   updateState(state, runSpec) {
     const { range, noiseAction, pctNoise, bfLogic } = runSpec;
     this.logic = bfLogic;
-    const grid = state.grid;
+    let grid = state.grid;
     const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
@@ -50,6 +50,7 @@ class GridController {
     const seen = new Array(width * height).fill(false);
 
     const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
+    const selected = this.lastSelected.pos;
     tuples.forEach((tuple) => {
       const [x, y] = tuple;
       const xOff = Math.floor(rng.random() * outRange) - range;
@@ -66,12 +67,11 @@ class GridController {
       grid[x2][y2] = new2;
       seen[x * width + y] = true;
       seen[x2 * width + y2] = true;
-      if (this.lastSelected.program) {
-        const lastSelectedPos = this.lastSelected.pos;
-        if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = { x: x2, y: y2 };
-        } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = { x: x, y: y };
+      if (!!selected) {
+        if (x === selected.x && y === selected.y) {
+          this.lastSelected.lastReactedWith = { x: x2, y: y2, order: 1 };
+        } else if (x2 === selected.x && y2 === selected.y) {
+          this.lastSelected.lastReactedWith = { x: x, y: y, order: 0 };
         }
       }
     });
@@ -103,9 +103,9 @@ class GridController {
   }
 
   clear(uiItems) {
-    const { cells, scene } = uiItems;
+    const { cells } = uiItems;
     cells.forEach((cell) => {
-      cell.removeCell(scene);
+      cell.removeCell();
     });
   }
 
@@ -122,7 +122,7 @@ class GridController {
       10
     );
     camera.position.z = 1;
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(screenSize, screenSize);
     renderer.setClearColor(0xffffff, 1);
     const canvasContainer = document.getElementById("grid-container");
@@ -168,14 +168,8 @@ class GridController {
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
         const program = grid[x][y];
-        const cell = new Cell(x, y);
-        cell.createMesh(
-          program,
-          grid.length,
-          grid[x].length,
-          scene,
-          this.logic
-        );
+        const cell = new Cell(x, y, grid.length, grid[x].length, scene);
+        cell.createMesh(program, this.logic);
         cells.push(cell);
       }
     }
@@ -190,6 +184,13 @@ class GridController {
         const cell = cells[i];
         cell.updateMesh(program, this.logic);
       }
+    }
+    if (!!this.lastSelected.lastReactedWith) {
+      const cell = this.lastSelected.cell;
+      const { x, y, order } = this.lastSelected.lastReactedWith;
+      const i = x * grid[x].length + y;
+      const reactedWithCell = cells[i];
+      cell.markReactedWith(reactedWithCell, order);
     }
   }
 
@@ -381,19 +382,20 @@ class GridController {
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / screenSize) * 2 + 1;
-
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
-
     const intersects = raycaster.intersectObjects(scene.children);
-    if (intersects.length > 0) {
-      const object = intersects[0].object;
-      const pos = object.userData.gridPosition;
-      const { x, y } = pos;
-      const program = grid[x][y];
-      const cell = cells[x * grid.length + y];
-      this.clickGrid(pos, program, cell);
+    if (intersects.length == 0) {
+      this.deSelectCell(uiItems);
+      return;
     }
+    let object = intersects[intersects.length - 1].object;
+    if (object.userData.isCircle) return;
+    const pos = object.userData.gridPosition;
+    const { x, y } = pos;
+    const program = grid[x][y];
+    const cell = cells[x * grid.length + y];
+    this.clickGrid(pos, program, cell, uiItems);
   }
 
   zoom(event, uiItems) {
@@ -414,7 +416,6 @@ class GridController {
     const scale = 1 - newZoom / camera.zoom;
     camera.position.x -= (mouseVector.x - camera.position.x) * scale;
     camera.position.y -= (mouseVector.y - camera.position.y) * scale;
-
     camera.zoom = newZoom;
     camera.updateProjectionMatrix();
     this.reRender(uiItems);
@@ -447,34 +448,39 @@ class GridController {
     );
   }
 
-  clickGrid(pos, program, cell) {
+  clickGrid(pos, program, cell, uiItems) {
+    this.exitCellEditMode();
+    const prevCell = this.lastSelected.cell;
+    const prevPos = this.lastSelected.pos;
+    this.lastSelected = { program, cell, pos };
+    this.showSelectedCellDetails(pos, program);
+    const noChange = prevPos && prevPos.x == pos.x && prevPos.y == pos.y;
+    if (noChange) return;
+    if (prevCell) prevCell.markNotSelected();
+    cell.markSelected();
+    this.reRender(uiItems);
+  }
+
+  deSelectCell(uiItems) {
     this.exitCellEditMode();
     if (!!this.lastSelected.cell) {
       this.lastSelected.cell.markNotSelected();
-      this.hideSelectedCellDetails();
     }
-    if (this.lastSelected.program == program) {
-      this.lastSelected = {};
-      return;
-    }
-    this.lastSelected = { program, cell, pos };
-    this.showSelectedCellDetails(pos, program);
-    cell.markSelected();
+    this.lastSelected = {};
+    document.getElementById("cell-details").style.display = "none";
+    document.getElementById("copy-icon-validation").style.display = "none";
+    this.reRender(uiItems);
   }
 
   showSelectedCellDetails(pos, program) {
-    const posStr = `(${pos.x},${pos.y})`;
+    const posStr = `Viewing: (${pos.x}, ${pos.y})`;
     const coloredDescription = this._toColoredFormat(program);
     const intFormat = program.join(",");
+    document.getElementById("copy-icon-validation").style.display = "none";
     document.getElementById("cell-details").style.display = "inline-block";
     document.getElementById("cell-details-0").innerText = posStr;
     document.getElementById("cell-details-1").innerText = intFormat;
     document.getElementById("cell-details-2").innerHTML = coloredDescription;
-  }
-
-  hideSelectedCellDetails() {
-    document.getElementById("cell-details").style.display = "none";
-    document.getElementById("copy-icon-validation").style.display = "none";
   }
 }
 

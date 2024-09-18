@@ -97,6 +97,10 @@ eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
   controller.editProgramWithColorsForm(store.state, inputVal, store.uiItems);
 });
 
+document.querySelector('.close-icon').addEventListener('click', function() {
+  controller.deSelectCell(store.uiItems);
+});
+
 /* zooming, panning, clicking */
 
 let { renderer, camera } = store.uiItems;

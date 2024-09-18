@@ -2,32 +2,33 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.m
 import miscSettings from "../miscSettings.js";
 
 class Cell {
-  constructor(x, y) {
+  constructor(x, y, gridWidth, gridHeight, scene) {
     this.x = x;
     this.y = y;
-  }
-
-  createMesh(program, gridWidth, gridHeight, scene, logic) {
-    const rowLen = Math.floor(Math.sqrt(program.length));
     const cellSize = miscSettings.cellPxlSize;
     const padding = miscSettings.cellPaddingPxl;
-    // const padding = 0;
+    this.xPoint = this.x * (cellSize + padding) - (gridWidth * (cellSize + padding)) / 2;
+    this.yPoint = this.y * (cellSize + padding) - (gridHeight * (cellSize + padding)) / 2;
+    this.scene = scene
+  }
+
+  createMesh(program, logic) {
+    const rowLen = Math.floor(Math.sqrt(program.length));
+    const { cellPxlSize } = miscSettings;
     const geometry = new THREE.PlaneGeometry(
-      cellSize,
-      cellSize,
+      cellPxlSize,
+      cellPxlSize,
       rowLen,
       rowLen
     );
-    const xPoint = this.x * (cellSize + padding) - (gridWidth * cellSize) / 2;
-    const yPoint = this.y * (cellSize + padding) - (gridHeight * cellSize) / 2;
-    this._setPositionsBuffer(geometry, cellSize, program);
+    this._setPositionsBuffer(geometry, cellPxlSize, program);
     this._setColorsBuffer(geometry, program, logic);
     const material = new THREE.MeshBasicMaterial({ vertexColors: true });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(xPoint, yPoint, 0);
+    mesh.position.set(this.xPoint, this.yPoint, 0);
     mesh.userData.gridPosition = { x: this.x, y: this.y };
     this.mesh = mesh;
-    scene.add(this.mesh);
+    this.scene.add(this.mesh);
   }
 
   _setPositionsBuffer(geometry, cellSize, program) {
@@ -90,6 +91,7 @@ class Cell {
   }
 
   updateMesh(program, logic) {
+    if (!!this.arrow) this.scene.remove(this.arrow);
     const colors = this.mesh.geometry.attributes.color;
     for (let i = 0; i < program.length; i++) {
       const instruction = program[i];
@@ -109,13 +111,74 @@ class Cell {
     return new THREE.Color(colorStr);
   }
 
-  removeCell(scene) {
-    scene.remove(this.mesh);
+  removeCell() {
+    this.scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
   }
 
-  markSelected() {}
+  markSelected() {
+    const black = 0x000000;
+    const white = 0xffffff;
+    this.marker = this.createCircle(7, 0.2, black);
+    this.border = this.createCircle(8, 0.1, white);
+    this.scene.add(this.marker);
+    this.scene.add(this.border);
+  }
 
-  markNotSelected() {}
+  markReactedWith(reactedWithCell, order) {
+    const thisPos = new THREE.Vector3(this.xPoint, this.yPoint, 0.1);
+    const otherPos = new THREE.Vector3(reactedWithCell.xPoint, reactedWithCell.yPoint, 0.1);
+    if (order === 0) {
+      this.arrow = this.createArrow(thisPos, otherPos);
+    } else if (order === 1) {
+      this.arrow = this.createArrow(otherPos, thisPos);
+    }
+    if (!this.arrow) return;
+    this.scene.add(this.arrow);
+  }
+
+  createArrow(startPos, endPos) {
+    const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
+    const arrowLength = startPos.distanceTo(endPos) - 8;
+    const blackColor = 0x000000;
+    const arrowHeadLen = 0.2 * arrowLength;
+    const arrowHeadWidth = 0.1 * arrowLength;
+    const arrow = new THREE.ArrowHelper(
+      direction,
+      startPos,
+      arrowLength,
+      blackColor,
+      arrowHeadLen,
+      arrowHeadWidth
+    );
+    return arrow;
+  }
+
+  createCircle(r, z, color) {
+    const radius = r;
+    const circleGeometry = new THREE.CircleGeometry(radius, 32);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: color,
+      side: THREE.DoubleSide,
+    });
+    const circle = new THREE.Mesh(circleGeometry, material);
+    circle.position.set(this.xPoint, this.yPoint, z);
+    circle.userData.isCircle = true;
+    return circle;
+  }
+
+  markNotSelected() {
+    this.removeCircle(this.marker);
+    this.removeCircle(this.border);
+    if (!!this.arrow) this.scene.remove(this.arrow);
+  }
+
+  removeCircle(asset) {
+    this.scene.remove(asset);
+    asset.geometry.dispose();
+    asset.material.dispose();
+  }
 }
 
 export { Cell };

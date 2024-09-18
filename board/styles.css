@@ -9,8 +9,12 @@
     word-wrap: break-word;
     white-space: normal;
     display: none;
-    width: 800px;
+    width: 650px;
     font-family: courier;
+    border-left: 1px solid black;
+    border-right: 1px solid black;
+    border-bottom: 1px solid black;
+    position: relative;
 }
 
 .char-instruction {
@@ -30,13 +34,20 @@
     display: block;
     margin-top: 5px;
     margin-bottom: 8px;
-    padding: 0;
     line-height: 0;
+}
+
+button {
+    padding: 0 !important;
 }
 
 .cell-details-edit-form {
     margin-top: 4px;
     margin-bottom: 4px;
+}
+
+#cell-details-0, #cell-details-1, #cell-details-2 {
+    padding-top: 8px !important;
 }
 
 .select {
@@ -47,10 +58,17 @@
     padding-right: 0px;
 }
 
-#cell-details-1 {
-    width: 700px;
-}
-
 canvas {
     border: 1px solid black;
+}
+
+.close-icon {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  font-size: 24px;
+  cursor: pointer;
+  color: black;
+  text-align: center;
+  line-height: 24px;
 }
