@@ -91,7 +91,7 @@ class Cell {
   }
 
   updateMesh(program, logic) {
-    if (!!this.arrow) this.scene.remove(this.arrow);
+    if (!!this.arrow) this.removeArrow();
     const colors = this.mesh.geometry.attributes.color;
     for (let i = 0; i < program.length; i++) {
       const instruction = program[i];
@@ -140,11 +140,13 @@ class Cell {
   }
 
   createArrow(startPos, endPos) {
+    startPos.z = 0.3;
+    endPos.z = 0.3;
     const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
-    const arrowLength = startPos.distanceTo(endPos) - 8;
-    const blackColor = 0x000000;
-    const arrowHeadLen = 0.2 * arrowLength;
-    const arrowHeadWidth = 0.1 * arrowLength;
+    const arrowLength = startPos.distanceTo(endPos);
+    const blackColor = 0x008000;
+    const arrowHeadLen = 15;
+    const arrowHeadWidth = 15;
     const arrow = new THREE.ArrowHelper(
       direction,
       startPos,
@@ -172,13 +174,18 @@ class Cell {
   markNotSelected() {
     if (!!this.marker) this.removeCircle(this.marker);
     if (!!this.border) this.removeCircle(this.border);
-    if (!!this.arrow) this.scene.remove(this.arrow);
+    if (!!this.arrow) this.removeArrow();
   }
 
   removeCircle(asset) {
     this.scene.remove(asset);
     asset.geometry.dispose();
     asset.material.dispose();
+  }
+
+  removeArrow() {
+    this.arrow.dispose();
+    this.scene.remove(this.arrow);
   }
 }
 
