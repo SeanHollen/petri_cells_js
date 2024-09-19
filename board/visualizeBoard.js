@@ -1,15 +1,19 @@
 import { EventHandleHelper } from "../shared/handleEvents.js";
-import { GridController } from "./gridController.js"
+import { GridController } from "./gridController.js";
 import { HistoryManager } from "./historyManager.js";
 import miscSettings from "../miscSettings.js";
+import addCanvasControlls from "./canvasControlls.js";
 
 const controller = new GridController();
 const initSpec = controller.getInitSpec();
 const store = {
   state: controller.initState(initSpec),
-  uiItems: controller.initGridUI(initSpec.width, initSpec.height),
+  uiItems: controller.initGridUI(),
 };
-const history = new HistoryManager().init(miscSettings.historyFidelity, store.state);
+const history = new HistoryManager().init(
+  miscSettings.historyFidelity,
+  store.state
+);
 controller.updateGridUI(store);
 
 const buttonMapping = {
@@ -31,7 +35,11 @@ const stepAction = () => {
   controller.updateGridUI(store, runSpec.toRecolor);
 };
 
-const eventHandleHelper = new EventHandleHelper(buttonMapping, stepAction, backAction)
+const eventHandleHelper = new EventHandleHelper(
+  buttonMapping,
+  stepAction,
+  backAction
+);
 
 eventHandleHelper.addEventListener(buttonMapping.backButton, backAction);
 eventHandleHelper.addEventListener(buttonMapping.stepButton, stepAction);
@@ -41,11 +49,11 @@ eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
   controller.toggleRun(runButton, store, history, runSpec);
 });
 eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
+  controller.clear(store.uiItems);
   const initSpec = controller.getInitSpec();
-  store.uiItems = controller.initGridUI(initSpec.width, initSpec.height);
   store.state = controller.initState(initSpec);
   history.init(miscSettings.historyFidelity, store.state);
-  controller.updateGridUI(store);
+  controller.updateGridUI(store, true);
   controller.stopRunning(store, runButton);
 });
 
@@ -60,8 +68,10 @@ document
   .addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const inputVal = document.getElementById("cell-details-1-edit-input").value
-      controller.editProgramWithNumsForm(store.state, inputVal);
+      const inputVal = document.getElementById(
+        "cell-details-1-edit-input"
+      ).value;
+      controller.editProgramWithNumsForm(store.state, inputVal, store.uiItems);
     }
   });
 document
@@ -69,18 +79,38 @@ document
   .addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const inputVal = document.getElementById("cell-details-2-edit-input").value;
-      controller.editProgramWithColorsForm(store.state, inputVal);
+      const inputVal = document.getElementById(
+        "cell-details-2-edit-input"
+      ).value;
+      controller.editProgramWithColorsForm(
+        store.state,
+        inputVal,
+        store.uiItems
+      );
     }
   });
 eventHandleHelper.addEventListener("cell-details-1-edit-submit", () => {
-  const inputVal = document.getElementById("cell-details-1-edit-input").value
-  controller.editProgramWithNumsForm(store.state, inputVal);
+  const inputVal = document.getElementById("cell-details-1-edit-input").value;
+  controller.editProgramWithNumsForm(store.state, inputVal, store.uiItems);
 });
 eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
   const inputVal = document.getElementById("cell-details-2-edit-input").value;
-  controller.editProgramWithColorsForm(store.state, inputVal);
+  controller.editProgramWithColorsForm(store.state, inputVal, store.uiItems);
 });
+
+document.querySelector('.close-icon').addEventListener('click', function() {
+  controller.deSelectCell();
+  controller.reRender(store.uiItems);
+});
+
+document.getElementById('board-save-button').addEventListener('click', function() {
+  const runSpec = controller.getRunSpec();
+  controller.save(store, history, runSpec);
+});
+
+/* zooming, panning, clicking */
+
+addCanvasControlls(store);
 
 window.store = store;
 window.HistoryManager = HistoryManager;

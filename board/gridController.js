@@ -1,59 +1,10 @@
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js";
 import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 import { getLanguageMapping } from "../shared/readLanguageMapping.js";
-import { Noise } from "./noise.js"
+import { Noise } from "./noise.js";
 import { Mulberry32, hashStringToInt } from "./rng.js";
+import { Cell } from "./cell.js";
 import miscSettings from "../miscSettings.js";
-
-/* TYPES
-  class GridController: {
-    LastSelected lastSelected
-    BrainfuckLogic logic
-    function runInterval
-  }
-  type Store: {
-    State state
-    UiItems uiItems
-    TimeDirection timeDirection
-  }
-  type State: {
-    int epoch
-    int uniqueCells
-    Grid previousGrid
-    Grid grid
-    Mulberry32 rng
-  }
-  // running backwards, paused, running
-  type TimeDirection: enum(-1, 0, 1)
-  type UiItems: CellUI[]
-  type CellUI: {
-    HTML canvas
-    CanvasRenderingContext2D ctx
-    function eventListener
-    HTML cellDiv
-  }
-  type LastSelected: {
-    CellUI cellUI
-    Program program
-    Pos pos
-    Pos lastReactedWith
-  }
-  type Pos: {
-    int x
-    int y
-  }
-  type RunSpec: {
-    int range
-    float speed
-    NoiseAction noiseAction
-    float(0-100) pctNoise
-    BrainfuckLogic bfLogic
-    // whether the color scheme has changed, requiring a cancel of rendering tricks
-    boolean toRecolor
-  }
-  type NoiseAction: enum("none", "killCells", "killInstructions")
-  type Grid: Program[][]
-  type Program: int[64]
-  */
 
 class GridController {
   constructor() {
@@ -63,7 +14,9 @@ class GridController {
     this.miscSettings = miscSettings;
   }
 
-  initStateHelper(width, height, rng, lambda) {
+  initState({ width, height, programLength, seed }) {
+    const rng = new Mulberry32(seed);
+    const initializationMode = this.miscSettings.initializationMode;
     this.tuples = [];
     for (let x = 0; x < height; x++) {
       for (let y = 0; y < width; y++) {
@@ -71,185 +24,25 @@ class GridController {
       }
     }
     const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, lambda)
+      Array.from({ length: width }, () => {
+        if (initializationMode === "dataOnly") {
+          return BrainfuckLogic.randomData(programLength, rng);
+        }
+        return BrainfuckLogic.randomProgram(programLength, rng);
+      })
     );
     return {
       epoch: 0,
-      uniqueCells: this.countUniqueCells(grid),
+      uniqueCells: width * height,
       grid: grid,
-      previousGrid: null,
       rng: rng,
-    }
-  }
-
-  initState({width, height, programLength, seed}) {
-    const rng = new Mulberry32(seed);
-    const initializationMode = this.miscSettings.initializationMode;
-    const lambda = () => {
-      if (initializationMode === "dataOnly") {
-        return BrainfuckLogic.randomData(programLength, rng);
-      }
-      return BrainfuckLogic.randomProgram(programLength, rng);
-    }
-    return this.initStateHelper(width, height, rng, lambda);
-  }
-
-  toColoredFormat(program) {
-    const asHrString = this.logic.toHumanReadableStr(program);
-    const asChars = asHrString.split("");
-    return program
-      .map((num, index) => {
-        const color = this.logic.intToColor(num);
-        // don't change the spacing, because it will effect the UI spacing
-        return `<div 
-                  class="char-instruction" 
-                  style="background-color:${color};"
-              >${asChars[index]}</div>`;
-      })
-      .join("");
-  }
-
-  countUniqueCells(grid) {
-    const set = new Set();
-    grid.forEach((row) => {
-      row.forEach((cell) => {
-        const stringified = JSON.stringify(cell);
-        set.add(stringified);
-      });
-    });
-    return set.size;
-  }
-
-  getCellClickEventListener(program, cellUI, pos) {
-    const controller = this;
-    return function (e) {
-      controller.exitCellEditMode();
-      const lastSelected = controller.lastSelected;
-      lastSelected.pos = pos;
-      if (lastSelected.program) {
-        lastSelected.cellUI.cellDiv.style.border = "none";
-        document.getElementById("cell-details").style.display = "none";
-        document.getElementById("copy-icon-validation").style.display = "none";
-        if (program == lastSelected.program) {
-          lastSelected.program = null;
-          return;
-        }
-      }
-      lastSelected.program = program;
-      lastSelected.cellUI = cellUI;
-
-      document.getElementById("cell-details").style.display = "inline-block";
-      document.getElementById("cell-details-0").innerText = `(${pos.x},${pos.y})`;
-      document.getElementById("cell-details-1").innerText = program.join(",");
-      document.getElementById("cell-details-2").innerHTML =
-        controller.toColoredFormat(program);
-      cellUI.cellDiv.style.border = `${controller.miscSettings.mainBorderPxl}px solid black`;
     };
   }
 
-  makeCanvas(cellDiv, { x, y }) {
-    if (!cellDiv) return;
-    const canvas = document.createElement("canvas");
-    canvas.id = `${x}_${y}`;
-    canvas.width = miscSettings.cellPxlSize;
-    canvas.height = miscSettings.cellPxlSize;
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    cellDiv.appendChild(canvas);
-    return { canvas, ctx, cellDiv };
-  }
-
-  highlightSelected(cellDiv, pos) {
-    if (cellDiv.style.border === `${miscSettings.altBorderPxl}px solid green`) {
-      cellDiv.style.border = '';
-    }
-    if (!this.lastSelected.program) {
-      return;
-    }
-    const rPos = this.lastSelected.lastReactedWith;
-    if (cellDiv.style.border === "" && rPos && pos.x === rPos.x && pos.y === rPos.y) {
-      cellDiv.style.border = `${miscSettings.altBorderPxl}px solid green`;
-    }
-  }
-
-  updateCellUI(program, prevProgram, cellUI, pos, toRecolor) {
-    const { canvas, ctx, eventListener, cellDiv } = cellUI;
-    this.highlightSelected(cellDiv, pos);
-    const updatesSet = {};
-    const sqrt = Math.sqrt(program.length);
-    const scalar = miscSettings.cellPxlSize / sqrt;
-    for (let i = 0; i < program.length; i++) {
-      if (!toRecolor && prevProgram && program[i] === prevProgram[i]) {
-        continue;
-      }
-      let recX = (i % sqrt) * scalar;
-      let recY = Math.floor(i / sqrt) * scalar;
-      const color = this.logic.intToColor(program[i]);
-      const updates = [recX, recY];
-      if (!updatesSet[color]) {
-        updatesSet[color] = [];
-      }
-      updatesSet[color].push(updates);
-    }
-    Object.keys(updatesSet).forEach((color) => {
-      ctx.beginPath();
-      ctx.fillStyle = color;
-      updatesSet[color].forEach((update) => {
-        const [recX, recY] = update;
-        ctx.rect(recX, recY, scalar, scalar);
-      });
-      ctx.fill();
-    });
-
-    if (eventListener) {
-      canvas.removeEventListener("mousedown", eventListener);
-    }
-    const newEventListener = this.getCellClickEventListener(program, cellUI, pos);
-    canvas.addEventListener("mousedown", newEventListener);
-    cellUI.eventListener = newEventListener;
-  }
-
-  initGridUI(width, height) {
-    document.getElementById("copy-icon").addEventListener("click", (e) => {
-      navigator.clipboard.writeText(
-        this.logic.toHumanReadableStr(this.lastSelected.program)
-      );
-      document.getElementById("copy-icon-validation").style.display =
-        "inline-block";
-    });
-    const container = document.getElementById("grid-container");
-    container.innerHTML = "";
-    const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = `repeat(${width}, ${miscSettings.vmin}vmin)`;
-    grid.style.gridTemplateRows = `repeat(${height}, ${miscSettings.vmin}vmin)`;
-    grid.style.gap = `${miscSettings.gap}vmin`;
-    container.appendChild(grid);
-    const uiItems = [];
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        const cell = document.createElement("div");
-        cell.style.backgroundColor = "#fff";
-        cell.style.cursor = "pointer";
-        grid.appendChild(cell);
-        let cellUI = this.makeCanvas(cell, { x, y });
-        uiItems.push(cellUI);
-      }
-    }
-    return uiItems;
-  }
-
-  deepCopy(grid) {
-    return grid.map((row) => {
-      return [...row];
-    });
-  }
-
-  updateState(state, { range, noiseAction, pctNoise, bfLogic }) {
+  updateState(state, runSpec) {
+    const { range, noiseAction, pctNoise, bfLogic } = runSpec;
     this.logic = bfLogic;
-    let grid = this.deepCopy(state.grid);
+    let grid = state.grid;
     const rng = state.rng;
     const height = grid.length;
     const width = grid[0].length;
@@ -257,8 +50,9 @@ class GridController {
     const seen = new Array(width * height).fill(false);
 
     const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
+    const selected = this.lastSelected.pos;
     tuples.forEach((tuple) => {
-      const [x, y] = tuple
+      const [x, y] = tuple;
       const xOff = Math.floor(rng.random() * outRange) - range;
       const x2 = (x + xOff + height) % height;
       const yOff = Math.floor(rng.random() * outRange) - range;
@@ -266,19 +60,18 @@ class GridController {
       if (seen[x * width + y] || seen[x2 * width + y2]) {
         return;
       }
-      const [new1, new2] = miscSettings.toRandomPivot 
+      const [new1, new2] = this.miscSettings.toRandomPivot
         ? this.logic.crossProgramsWithRotation(grid[x][y], grid[x2][y2], rng)
-        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2])
+        : this.logic.crossReactPrograms(grid[x][y], grid[x2][y2]);
       grid[x][y] = new1;
       grid[x2][y2] = new2;
       seen[x * width + y] = true;
       seen[x2 * width + y2] = true;
-      if (this.lastSelected.program) {
-        const lastSelectedPos = this.lastSelected.pos;
-        if (x === lastSelectedPos.x && y === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = {x: x2, y: y2};
-        } else if (x2 === lastSelectedPos.x && y2 === lastSelectedPos.y) {
-          this.lastSelected.lastReactedWith = {x: x, y: y};
+      if (!!selected) {
+        if (x === selected.x && y === selected.y) {
+          this.lastSelected.lastReactedWith = { x: x2, y: y2, order: 1 };
+        } else if (x2 === selected.x && y2 === selected.y) {
+          this.lastSelected.lastReactedWith = { x: x, y: y, order: 0 };
         }
       }
     });
@@ -289,67 +82,168 @@ class GridController {
     return {
       rng: rng,
       epoch: state.epoch + 1,
-      uniqueCells: this.countUniqueCells(grid),
-      previousGrid: state.grid,
+      uniqueCells: this._countUniqueCells(grid),
       grid: grid,
     };
+  }
+
+  _countUniqueCells(grid) {
+    const set = new Set();
+    grid.forEach((row) => {
+      row.forEach((cell) => {
+        const stringified = JSON.stringify(cell);
+        set.add(stringified);
+      });
+    });
+    return set.size;
   }
 
   backState(history, state) {
     return history.get(state.epoch - 1);
   }
 
+  clear(uiItems) {
+    const { cells } = uiItems;
+    this.deSelectCell();
+    cells.forEach((cell) => {
+      cell.removeCell();
+    });
+  }
+
+  initGridUI() {
+    this._addCopyIconEventListener();
+    const { screenSize } = this.miscSettings;
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(
+      screenSize / -2,
+      screenSize / 2,
+      screenSize / 2,
+      screenSize / -2,
+      0.1,
+      10
+    );
+    camera.position.z = 1;
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(screenSize, screenSize);
+    renderer.setClearColor(0xffffff, 1);
+    const canvasContainer = document.getElementById("grid-container");
+    canvasContainer.appendChild(renderer.domElement);
+    return { scene, camera, renderer };
+  }
+
+  _addCopyIconEventListener() {
+    document.getElementById("copy-icon").addEventListener("click", (e) => {
+      navigator.clipboard.writeText(
+        this.logic.toHumanReadableStr(this.lastSelected.program)
+      );
+      document.getElementById("copy-icon-validation").style.display =
+        "inline-block";
+    });
+  }
+
   updateGridUI({ state, uiItems }, toRecolor) {
-    const { epoch, uniqueCells, grid, previousGrid } = state;
-    for (let x = 0; x < grid.length; x++) {
-      for (let y = 0; y < grid[x].length; y++) {
-        let program = grid[x][y];
-        let prevProgram = previousGrid ? previousGrid[x][y] : null;
-        let cellUI = uiItems[x * grid[x].length + y];
-        this.updateCellUI(program, prevProgram, cellUI, { x, y }, toRecolor);
-      }
+    const { epoch, uniqueCells, grid } = state;
+    this.updateCounters(epoch, uniqueCells);
+    if (!uiItems.cells || toRecolor) {
+      uiItems.cells = this.createGridCells(grid, uiItems.scene);
+    } else {
+      this.updateGridCells(grid, uiItems.cells);
     }
+    this.reRender(uiItems);
+  }
+
+  reRender(uiItems) {
+    const { renderer, scene, camera } = uiItems;
+    renderer.render(scene, camera);
+  }
+
+  updateCounters(epoch, uniqueCells) {
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  stopRunning(store, button) {
-    store.timeDirection = 0;
-    button.textContent = "Run";
-    clearInterval(this.runInterval);
+  createGridCells(grid, scene) {
+    const cells = [];
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        const program = grid[x][y];
+        const cell = new Cell(x, y, grid.length, grid[x].length, scene);
+        cell.createMesh(program, this.logic);
+        cells.push(cell);
+      }
+    }
+    return cells;
+  }
+
+  updateGridCells(grid, cells) {
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[x].length; y++) {
+        const program = grid[x][y];
+        const i = x * grid[x].length + y;
+        const cell = cells[i];
+        cell.updateMesh(program, this.logic);
+      }
+    }
+    if (!!this.lastSelected.lastReactedWith) {
+      const cell = this.lastSelected.cell;
+      const { x, y, order } = this.lastSelected.lastReactedWith;
+      const i = x * grid[x].length + y;
+      const reactedWithCell = cells[i];
+      cell.markReactedWith(reactedWithCell, order);
+    }
+  }
+
+  save(store, history, runSpec) {
+    const timeDirection = store.timeDirection;
+    this.stopRunning(store);
+    history.addState(store.state);
+    if (timeDirection) {
+      this.startRun(store, history, runSpec);
+    }
   }
 
   toggleRun(button, store, history, runSpec) {
-    let speed = runSpec.speed;
-    if (store.timeDirection === 1 || store.timeDirection === -1) {
+    if (!store.timeDirection) {
+      this.startRun(store, history, runSpec, button);
+    } else {
       this.stopRunning(store, button);
-      return;
     }
+  }
+
+  startRun(store, history, runSpec, button) {
+    if (!!button) button.textContent = "Pause";
+    let speed = runSpec.speed;
     if (speed < 0) {
       store.timeDirection = -1;
-      speed *= -1
+      speed *= -1;
     } else if (speed > 0) {
       store.timeDirection = 1;
     }
-
-    button.textContent = "Pause";
     this.runInterval = setInterval(() => {
+      if (store.timeDirection === 0) {
+        return;
+      }
       if (store.timeDirection === -1) {
         const newState = this.backState(history, store.state);
         Object.assign(store.state, newState);
-      } else if (store.timeDirection === 1) {
+      }
+      if (store.timeDirection === 1) {
         store.state = this.updateState(store.state, runSpec);
         if (this.miscSettings.storeStateWhenRunning) {
           history.noteState(store.state);
         }
-      } else {
-        return;
       }
       this.updateGridUI(store, runSpec.toRecolor);
       runSpec.toRecolor = false;
     }, 1000 / speed);
+  }
+
+  stopRunning(store, button) {
+    store.timeDirection = 0;
+    if (!!button) button.textContent = "Run";
+    clearInterval(this.runInterval);
   }
 
   enterCellEditMode() {
@@ -368,7 +262,9 @@ class GridController {
     const numInput = document.getElementById("cell-details-1-edit-input");
     const colorsInput = document.getElementById("cell-details-2-edit-input");
     numInput.value = this.lastSelected.program.join(",");
-    colorsInput.value = this.logic.toHumanReadableStr(this.lastSelected.program);
+    colorsInput.value = this.logic.toHumanReadableStr(
+      this.lastSelected.program
+    );
   }
 
   exitCellEditMode() {
@@ -386,7 +282,7 @@ class GridController {
     });
   }
 
-  editProgramWithNumsForm(state, inputVal) {
+  editProgramWithNumsForm(state, inputVal, uiItems) {
     const isIntegerFormat = /^[,\-\d]+$/.test(inputVal);
     if (!isIntegerFormat) return;
     const intArr = inputVal.split(",").map((num) => parseInt(num));
@@ -394,32 +290,45 @@ class GridController {
       (i) => !isNaN(i) && i !== null && i !== undefined
     );
     if (!validValues) return;
-    this.submitProgram(intArr, state.grid);
+    this.submitProgram(intArr, state.grid, uiItems);
   }
 
-  editProgramWithColorsForm(state, inputVal) {
+  editProgramWithColorsForm(state, inputVal, uiItems) {
     const textNoWhitespace = inputVal.replace(/\s+/g, "");
     const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
       textNoWhitespace
     );
     if (!isHrBfFormat) return;
     const intArr = this.logic.fromHumanReadableStr(textNoWhitespace);
-    this.submitProgram(intArr, state.grid);
+    this.submitProgram(intArr, state.grid, uiItems);
   }
 
-  submitProgram(program, grid) {
+  submitProgram(program, grid, uiItems) {
     const typicalProgramLength = grid[0][0].length;
     program = program.slice(0, typicalProgramLength);
     while (program.length < typicalProgramLength) program.push(0);
     this.lastSelected.program = program;
-    document.getElementById("cell-details-1").innerText = program.join(",");
-    document.getElementById("cell-details-2").innerHTML =
-      this.toColoredFormat(program);
+    this.showSelectedCellDetails(this.lastSelected.pos, program);
     const { x, y } = this.lastSelected.pos;
-    const prevProgram = grid[x][y];
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.updateCellUI(program, prevProgram, this.lastSelected.cellUI, { x, y }, false);
+    this.lastSelected.cell.updateMesh(program, this.logic);
+    this.reRender(uiItems);
+  }
+
+  _toColoredFormat(program) {
+    const asHrString = this.logic.toHumanReadableStr(program);
+    const asChars = asHrString.split("");
+    return program
+      .map((num, index) => {
+        const color = this.logic.intToColor(num);
+        // don't change the spacing, because it will effect the UI spacing
+        return `<div 
+                  class="char-instruction" 
+                  style="background-color:${color};"
+              >${asChars[index]}</div>`;
+      })
+      .join("");
   }
 
   getRunSpec() {
@@ -458,7 +367,7 @@ class GridController {
     const height = parseInt(inputtedHeight) || 20;
     const inputtedProgramLength = document.getElementById("cell-size").value;
     const programLength = parseInt(inputtedProgramLength) || 64;
-    const seed = this.getSeed()
+    const seed = this.getSeed();
     return { width, height, programLength, seed };
   }
 
@@ -474,10 +383,118 @@ class GridController {
       } while (placed.has(`${x}${x}`));
       placed.add(`${x}${y}`);
       grid[x][y] = program;
-    })
+    });
 
     return grid;
   }
+
+  onMouseDown(event, grid, uiItems) {
+    const { renderer, camera, scene, cells } = uiItems;
+    const { screenSize } = this.miscSettings;
+    const mouse = new THREE.Vector2();
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / screenSize) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    if (intersects.length == 0) {
+      this.deSelectCell();
+      this.reRender(uiItems);
+      return;
+    }
+    let object = intersects[intersects.length - 1].object;
+    if (object.userData.isCircle) return;
+    const pos = object.userData.gridPosition;
+    const { x, y } = pos;
+    const program = grid[x][y];
+    const cell = cells[x * grid.length + y];
+    this.clickGrid(pos, program, cell, uiItems);
+  }
+
+  zoom(event, uiItems) {
+    const { zoomSpeed } = this.miscSettings;
+    const { renderer, camera } = uiItems;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (this.mouseOutOfBounds(rect, event)) return;
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    event.preventDefault();
+    const mouseNDCX = ((mouseX - rect.left) / rect.width) * 2 - 1;
+    const mouseNDCY = -((mouseY - rect.top) / rect.height) * 2 + 1;
+    const mouseVector = new THREE.Vector3(mouseNDCX, mouseNDCY, 0);
+    mouseVector.unproject(camera);
+    const zoomFactor = 1 + event.deltaY * zoomSpeed;
+    const newZoom = camera.zoom / zoomFactor;
+    if (newZoom <= 0.01 || newZoom > 200) return;
+    const scale = 1 - newZoom / camera.zoom;
+    camera.position.x -= (mouseVector.x - camera.position.x) * scale;
+    camera.position.y -= (mouseVector.y - camera.position.y) * scale;
+    camera.zoom = newZoom;
+    camera.updateProjectionMatrix();
+    this.reRender(uiItems);
+  }
+
+  drag(event, uiItems, prevMouse) {
+    const { camera, renderer } = uiItems;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (this.mouseOutOfBounds(rect, event)) return;
+
+    const deltaMove = {
+      x: event.clientX - prevMouse.x,
+      y: event.clientY - prevMouse.y,
+    };
+
+    camera.position.x -= deltaMove.x / camera.zoom;
+    camera.position.y += deltaMove.y / camera.zoom;
+    this.reRender(store.uiItems);
+    return 
+  }
+
+  mouseOutOfBounds(rect, event) {
+    const mouseX = event.clientX;
+    const mouseY = event.clientY;
+    return (
+      mouseX < rect.left ||
+      mouseX > rect.right ||
+      mouseY < rect.top ||
+      mouseY > rect.bottom
+    );
+  }
+
+  clickGrid(pos, program, cell, uiItems) {
+    this.exitCellEditMode();
+    const prevCell = this.lastSelected.cell;
+    const prevPos = this.lastSelected.pos;
+    this.lastSelected = { program, cell, pos };
+    this.showSelectedCellDetails(pos, program);
+    const noChange = prevPos && prevPos.x == pos.x && prevPos.y == pos.y;
+    if (noChange) return;
+    if (prevCell) prevCell.markNotSelected();
+    cell.markSelected();
+    this.reRender(uiItems);
+  }
+
+  deSelectCell() {
+    this.exitCellEditMode();
+    if (!!this.lastSelected.cell) {
+      this.lastSelected.cell.markNotSelected();
+    }
+    this.lastSelected = {};
+    document.getElementById("cell-details").style.display = "none";
+    document.getElementById("copy-icon-validation").style.display = "none";
+  }
+
+  showSelectedCellDetails(pos, program) {
+    const posStr = `Viewing: (${pos.x}, ${pos.y})`;
+    const coloredDescription = this._toColoredFormat(program);
+    const intFormat = program.join(",");
+    document.getElementById("copy-icon-validation").style.display = "none";
+    document.getElementById("cell-details").style.display = "inline-block";
+    document.getElementById("cell-details-0").innerText = posStr;
+    document.getElementById("cell-details-1").innerText = intFormat;
+    document.getElementById("cell-details-2").innerHTML = coloredDescription;
+  }
 }
 
-export { GridController }
+export { GridController };

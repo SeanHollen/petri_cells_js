@@ -4,9 +4,8 @@ export default {
     // "instructionsOnly" or "dataOnly"
     initializationMode: "instructionsOnly",
     historyFidelity: 50,
-    cellPxlSize: 32,
-    vmin: 3.5,
-    gap: 0.4,
-    mainBorderPxl: 3,
-    altBorderPxl: 2
+    cellPxlSize: 30,
+    cellPaddingPxl: 4,
+    screenSize: 650,
+    zoomSpeed: 0.005,
 };

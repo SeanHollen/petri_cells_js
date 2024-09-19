@@ -88,7 +88,7 @@
       </ol>
       <p>And the two new programs take the place of the original programs. This process can be expressed as one line of
         code: <code>a, b = split(execBff(a + b))</code>.</p>
-      <h3 id="grid-interactions">Grid Interactions</h3>
+      <h2 id="grid-interactions">Grid Interactions</h2>
       <p>Now that you know the chemistry behind transforming 2 programs into 2 programs, we can introduce: THE GRID.</p>
       <p><img src="./media/the_grid.png" alt="a grid of cells, each sub-cell is itself an 8x8 grid of diverse colors">
       </p>
@@ -235,10 +235,38 @@
 </code></pre>
       <p>I have noticed anecdotally that complex life does not emerge when this setting is switched on. </p>
       <p><strong>Super large grids</strong></p>
-      <p>I'm still working on this: (1) Getting a better UI for super large grids. Looking to adopt a framework like
-        PixiJS to allow for this. (2) I'm hoping there's a way to get my JS code even more performant than it is, to
-        enable the super large grids. Feel free to make suggestions and <a
-          href="https://github.com/SeanHollen/petri_cells_js">contribute</a>.</p>
+      <p><strong> Grid Zooming</strong></p>
+      <p>The site currently supports larger grids. To facilitate that, you can zoom and pan around. However, for super
+        large grids, the zooming gets quite laggy.</p>
+      <h2 id="versions">Versions</h2>
+      <p>This project has gone through a few iterations so far.</p>
+      <p><strong>Version 0: Kivy</strong></p>
+      <p>My initial mockup of the grid, along with the BFF interpreter visualization, was created in Kivy.</p>
+      <p><strong>Version 1</strong></p>
+      <p>I found Kivy a bit difficult to work with, because it lacked the convenience of the web. So I moved over the
+        project to vanilla JS.</p>
+      <p><strong>Version 2</strong></p>
+      <p>Version 1 was very slow. Each cell was a separate canvas element. Each frame it was removing and re-creating
+        the canvas.</p>
+      <p>The first obvious improvement was to not do that; reuse previously existing canvases.</p>
+      <p>Moreover, for each cell, it was drawing each tile using the <code>fillRect()</code> function. So the next
+        speedup was to batch the canvas changes. Precompute the updates and sort them by color, then run for each batch,
+        run <code>ctx.fillStyle = color</code>, ctx.rect()<code>(for each tile), and finish with</code>ctx.fill()`</p>
+      <p><strong>Version 3: ThreeJS</strong></p>
+      <p>The speedup in Version 2 wasn&#39;t good enough. To enable larger grids, and better usability, I wanted to
+        support zooming and panning. I achieved this with ThreeJS.</p>
+      <p><strong>Version 4?</strong></p>
+      <p>A future version 4 could consist of a few things. </p>
+      <ul>
+        <li>First and foremost, I&#39;d like to refactor the code to use a framework, without compromising the existing
+          features.</li>
+        <li>It&#39;s still laggy on very large grids, I&#39;d like to smooth that out.</li>
+        <li>On large grids, there is also a performance issue of doing the computations on large grids. The original
+          paper uses Cuda to speed this up. I&#39;d like to incorporate speedups into my implementation.</li>
+        <li>The original paper also experiments with several different minimalist programming languages My version only
+          supports BFF, but it would be nice to extend it.</li>
+      </ul>
+
 
     </div>
   </div>
