@@ -2,6 +2,7 @@ import { EventHandleHelper } from "../shared/handleEvents.js";
 import { GridController } from "./gridController.js";
 import { HistoryManager } from "./historyManager.js";
 import miscSettings from "../miscSettings.js";
+import addCanvasControlls from "./canvasControlls.js";
 
 const controller = new GridController();
 const initSpec = controller.getInitSpec();
@@ -98,60 +99,13 @@ eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
 });
 
 document.querySelector('.close-icon').addEventListener('click', function() {
-  controller.deSelectCell(store.uiItems);
+  controller.deSelectCell();
+  controller.reRender(store.uiItems);
 });
 
 /* zooming, panning, clicking */
 
-let { renderer, camera } = store.uiItems;
-
-let isDragging = false;
-let prevMouse = null;
-
-renderer.domElement.addEventListener(
-  "mousedown",
-  (event) => {
-    controller.onMouseDown(event, store.state.grid, store.uiItems);
-  },
-  false
-);
-
-window.addEventListener("mousedown", (event) => {
-  isDragging = true;
-  prevMouse = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-});
-
-window.addEventListener("mouseup", (event) => {
-  isDragging = false;
-});
-
-window.addEventListener("mousemove", (event) => {
-  if (!isDragging) return;
-  controller.drag(event, store.uiItems, prevMouse);
-  prevMouse = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-});
-
-// right-click
-window.addEventListener("contextmenu", (event) => {
-  isDragging = false;
-});
-
-// losing focus
-window.addEventListener("blur", () => {
-  isDragging = false;
-});
-
-renderer.domElement.addEventListener("wheel", (event) => {
-  controller.zoom(event, store.uiItems)
-});
-
-/* adding to window */
+addCanvasControlls(store);
 
 window.store = store;
 window.HistoryManager = HistoryManager;

@@ -104,6 +104,7 @@ class GridController {
 
   clear(uiItems) {
     const { cells } = uiItems;
+    this.deSelectCell();
     cells.forEach((cell) => {
       cell.removeCell();
     });
@@ -194,22 +195,33 @@ class GridController {
     }
   }
 
-  toggleRun(button, store, history, runSpec) {
-    let speed = runSpec.speed;
-    if (store.timeDirection === 1 || store.timeDirection === -1) {
-      this.stopRunning(store, button);
-      return;
+  save(store, history, runSpec) {
+    this.stopRunning(store, button);
+    history.addState(store.state);
+    if (store.timeDirection !== 0) {
+      this.startRun(store, history, runSpec);
     }
+  }
+
+  toggleRun(button, store, history, runSpec) {
+    if (!store.timeDirection) {
+      this.startRun(store, history, runSpec, button);
+    } else {
+      this.stopRunning(store, button);
+    }
+  }
+
+  startRun(store, history, runSpec, button) {
+    button.textContent = "Pause";
+    let speed = runSpec.speed;
     if (speed < 0) {
       store.timeDirection = -1;
       speed *= -1;
     } else if (speed > 0) {
       store.timeDirection = 1;
     }
-
-    button.textContent = "Pause";
     this.runInterval = setInterval(() => {
-      if (store.timeDirection == 0) {
+      if (store.timeDirection === 0) {
         return;
       }
       if (store.timeDirection === -1) {
@@ -386,7 +398,8 @@ class GridController {
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(scene.children);
     if (intersects.length == 0) {
-      this.deSelectCell(uiItems);
+      this.deSelectCell();
+      this.reRender(uiItems);
       return;
     }
     let object = intersects[intersects.length - 1].object;
@@ -461,7 +474,7 @@ class GridController {
     this.reRender(uiItems);
   }
 
-  deSelectCell(uiItems) {
+  deSelectCell() {
     this.exitCellEditMode();
     if (!!this.lastSelected.cell) {
       this.lastSelected.cell.markNotSelected();
@@ -469,7 +482,6 @@ class GridController {
     this.lastSelected = {};
     document.getElementById("cell-details").style.display = "none";
     document.getElementById("copy-icon-validation").style.display = "none";
-    this.reRender(uiItems);
   }
 
   showSelectedCellDetails(pos, program) {

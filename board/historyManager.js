@@ -16,8 +16,8 @@ class HistoryManager {
 
   deepCopy(state) {
     return {
-      ...state,
-      previousGrid: null,
+      epoch: state.epoch,
+      uniqueCells: state.uniqueCells,
       grid: this.deepGridCopy(state.grid),
       rng: state.rng.getCopy(),
     };
@@ -36,9 +36,9 @@ class HistoryManager {
   }
 
   addState(state) {
-    state = this.deepCopy(state);
+    const stateCopy = this.deepCopy(state);
     const pointer = this.lastStoredEpochPriorTo(state.epoch) + 1;
-    this.history.splice(pointer, 0, state);
+    this.history.splice(pointer, 0, stateCopy);
   }
 
   get(epoch) {

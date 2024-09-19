@@ -112,6 +112,7 @@ class Cell {
   }
 
   removeCell() {
+    this.markNotSelected();
     this.scene.remove(this.mesh);
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
@@ -169,8 +170,8 @@ class Cell {
   }
 
   markNotSelected() {
-    this.removeCircle(this.marker);
-    this.removeCircle(this.border);
+    if (!!this.marker) this.removeCircle(this.marker);
+    if (!!this.border) this.removeCircle(this.border);
     if (!!this.arrow) this.scene.remove(this.arrow);
   }
 
