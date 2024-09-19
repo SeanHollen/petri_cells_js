@@ -103,6 +103,11 @@ document.querySelector('.close-icon').addEventListener('click', function() {
   controller.reRender(store.uiItems);
 });
 
+document.getElementById('board-save-button').addEventListener('click', function() {
+  const runSpec = controller.getRunSpec();
+  controller.save(store, history, runSpec);
+});
+
 /* zooming, panning, clicking */
 
 addCanvasControlls(store);

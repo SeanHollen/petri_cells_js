@@ -196,9 +196,10 @@ class GridController {
   }
 
   save(store, history, runSpec) {
-    this.stopRunning(store, button);
+    const timeDirection = store.timeDirection;
+    this.stopRunning(store);
     history.addState(store.state);
-    if (store.timeDirection !== 0) {
+    if (timeDirection) {
       this.startRun(store, history, runSpec);
     }
   }
@@ -212,7 +213,7 @@ class GridController {
   }
 
   startRun(store, history, runSpec, button) {
-    button.textContent = "Pause";
+    if (!!button) button.textContent = "Pause";
     let speed = runSpec.speed;
     if (speed < 0) {
       store.timeDirection = -1;
@@ -241,7 +242,7 @@ class GridController {
 
   stopRunning(store, button) {
     store.timeDirection = 0;
-    button.textContent = "Run";
+    if (!!button) button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
