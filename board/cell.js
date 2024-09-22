@@ -91,7 +91,7 @@ class Cell {
   }
 
   updateMesh(program, logic) {
-    if (!!this.arrow) this.removeArrow();
+    this._removeArrow();
     const colors = this.mesh.geometry.attributes.color;
     for (let i = 0; i < program.length; i++) {
       const instruction = program[i];
@@ -121,8 +121,8 @@ class Cell {
   markSelected() {
     const black = 0x000000;
     const white = 0xffffff;
-    this.marker = this.createCircle(7, 0.2, black);
-    this.border = this.createCircle(8, 0.1, white);
+    this.marker = this._createCircle(7, 0.2, white);
+    this.border = this._createCircle(8, 0.1, black);
     this.scene.add(this.marker);
     this.scene.add(this.border);
   }
@@ -131,20 +131,20 @@ class Cell {
     const thisPos = new THREE.Vector3(this.xPoint, this.yPoint, 0.1);
     const otherPos = new THREE.Vector3(reactedWithCell.xPoint, reactedWithCell.yPoint, 0.1);
     if (order === 0) {
-      this.arrow = this.createArrow(thisPos, otherPos);
+      this.arrow = this._createArrow(thisPos, otherPos);
     } else if (order === 1) {
-      this.arrow = this.createArrow(otherPos, thisPos);
+      this.arrow = this._createArrow(otherPos, thisPos);
     }
     if (!this.arrow) return;
     this.scene.add(this.arrow);
   }
 
-  createArrow(startPos, endPos) {
+  _createArrow(startPos, endPos) {
     startPos.z = 0.3;
     endPos.z = 0.3;
     const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
     const arrowLength = startPos.distanceTo(endPos);
-    const blackColor = 0x008000;
+    const blackColor = 0x000000;
     const arrowHeadLen = 15;
     const arrowHeadWidth = 15;
     const arrow = new THREE.ArrowHelper(
@@ -158,7 +158,7 @@ class Cell {
     return arrow;
   }
 
-  createCircle(r, z, color) {
+  _createCircle(r, z, color) {
     const radius = r;
     const circleGeometry = new THREE.CircleGeometry(radius, 32);
     const material = new THREE.MeshBasicMaterial({ 
@@ -172,20 +172,29 @@ class Cell {
   }
 
   markNotSelected() {
-    if (!!this.marker) this.removeCircle(this.marker);
-    if (!!this.border) this.removeCircle(this.border);
-    if (!!this.arrow) this.removeArrow();
+    if (!!this.marker) {
+      this._removeCircle(this.marker);
+      delete this.marker;
+    }
+    if (!!this.border) {
+      this._removeCircle(this.border);
+      delete this.border;
+    }
+    this._removeArrow();
   }
 
-  removeCircle(asset) {
+  _removeCircle(asset) {
     this.scene.remove(asset);
     asset.geometry.dispose();
     asset.material.dispose();
   }
 
-  removeArrow() {
-    this.arrow.dispose();
-    this.scene.remove(this.arrow);
+  _removeArrow() {
+    if (!!this.arrow) {
+      this.scene.remove(this.arrow);
+      this.arrow.dispose();
+      delete this.arrow;
+    }
   }
 }
 

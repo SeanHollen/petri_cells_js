@@ -99,7 +99,9 @@ class GridController {
   }
 
   backState(history, state) {
-    return history.get(state.epoch - 1);
+    delete this.lastSelected.lastReactedWith;
+    const newState = history.get(state.epoch - 1);
+    return newState;
   }
 
   clear(uiItems) {
@@ -143,11 +145,11 @@ class GridController {
 
   updateGridUI({ state, uiItems }, toRecolor) {
     const { epoch, uniqueCells, grid } = state;
-    this.updateCounters(epoch, uniqueCells);
+    this._updateCounters(epoch, uniqueCells);
     if (!uiItems.cells || toRecolor) {
-      uiItems.cells = this.createGridCells(grid, uiItems.scene);
+      uiItems.cells = this._createGridCells(grid, uiItems.scene);
     } else {
-      this.updateGridCells(grid, uiItems.cells);
+      this._updateGridCells(grid, uiItems.cells);
     }
     this.reRender(uiItems);
   }
@@ -157,14 +159,14 @@ class GridController {
     renderer.render(scene, camera);
   }
 
-  updateCounters(epoch, uniqueCells) {
+  _updateCounters(epoch, uniqueCells) {
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  createGridCells(grid, scene) {
+  _createGridCells(grid, scene) {
     const cells = [];
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
@@ -177,7 +179,7 @@ class GridController {
     return cells;
   }
 
-  updateGridCells(grid, cells) {
+  _updateGridCells(grid, cells) {
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
         const program = grid[x][y];
@@ -200,19 +202,19 @@ class GridController {
     this.stopRunning(store);
     history.addState(store.state);
     if (timeDirection) {
-      this.startRun(store, history, runSpec);
+      this._startRun(store, history, runSpec);
     }
   }
 
   toggleRun(button, store, history, runSpec) {
     if (!store.timeDirection) {
-      this.startRun(store, history, runSpec, button);
+      this._startRun(store, history, runSpec, button);
     } else {
       this.stopRunning(store, button);
     }
   }
 
-  startRun(store, history, runSpec, button) {
+  _startRun(store, history, runSpec, button) {
     if (!!button) button.textContent = "Pause";
     let speed = runSpec.speed;
     if (speed < 0) {
@@ -290,7 +292,7 @@ class GridController {
       (i) => !isNaN(i) && i !== null && i !== undefined
     );
     if (!validValues) return;
-    this.submitProgram(intArr, state.grid, uiItems);
+    this._submitProgram(intArr, state.grid, uiItems);
   }
 
   editProgramWithColorsForm(state, inputVal, uiItems) {
@@ -300,15 +302,15 @@ class GridController {
     );
     if (!isHrBfFormat) return;
     const intArr = this.logic.fromHumanReadableStr(textNoWhitespace);
-    this.submitProgram(intArr, state.grid, uiItems);
+    this._submitProgram(intArr, state.grid, uiItems);
   }
 
-  submitProgram(program, grid, uiItems) {
+  _submitProgram(program, grid, uiItems) {
     const typicalProgramLength = grid[0][0].length;
     program = program.slice(0, typicalProgramLength);
     while (program.length < typicalProgramLength) program.push(0);
     this.lastSelected.program = program;
-    this.showSelectedCellDetails(this.lastSelected.pos, program);
+    this._showSelectedCellDetails(this.lastSelected.pos, program);
     const { x, y } = this.lastSelected.pos;
     grid[x][y] = program;
     this.exitCellEditMode();
@@ -349,7 +351,7 @@ class GridController {
     return { range, speed, noiseAction, pctNoise, bfLogic, toRecolor };
   }
 
-  getSeed() {
+  _getSeed() {
     const seedInput = document.getElementById("seed")[0].value;
     if (seedInput === "") {
       return Math.floor(Math.random() * 4294967296) >>> 0;
@@ -367,7 +369,7 @@ class GridController {
     const height = parseInt(inputtedHeight) || 20;
     const inputtedProgramLength = document.getElementById("cell-size").value;
     const programLength = parseInt(inputtedProgramLength) || 64;
-    const seed = this.getSeed();
+    const seed = this._getSeed();
     return { width, height, programLength, seed };
   }
 
@@ -409,14 +411,14 @@ class GridController {
     const { x, y } = pos;
     const program = grid[x][y];
     const cell = cells[x * grid.length + y];
-    this.clickGrid(pos, program, cell, uiItems);
+    this._clickGrid(pos, program, cell, uiItems);
   }
 
   zoom(event, uiItems) {
     const { zoomSpeed } = this.miscSettings;
     const { renderer, camera } = uiItems;
     const rect = renderer.domElement.getBoundingClientRect();
-    if (this.mouseOutOfBounds(rect, event)) return;
+    if (this._mouseOutOfBounds(rect, event)) return;
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     event.preventDefault();
@@ -438,7 +440,7 @@ class GridController {
   drag(event, uiItems, prevMouse) {
     const { camera, renderer } = uiItems;
     const rect = renderer.domElement.getBoundingClientRect();
-    if (this.mouseOutOfBounds(rect, event)) return;
+    if (this._mouseOutOfBounds(rect, event)) return;
 
     const deltaMove = {
       x: event.clientX - prevMouse.x,
@@ -447,11 +449,11 @@ class GridController {
 
     camera.position.x -= deltaMove.x / camera.zoom;
     camera.position.y += deltaMove.y / camera.zoom;
-    this.reRender(store.uiItems);
+    this.reRender(uiItems);
     return 
   }
 
-  mouseOutOfBounds(rect, event) {
+  _mouseOutOfBounds(rect, event) {
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     return (
@@ -462,12 +464,12 @@ class GridController {
     );
   }
 
-  clickGrid(pos, program, cell, uiItems) {
+  _clickGrid(pos, program, cell, uiItems) {
     this.exitCellEditMode();
     const prevCell = this.lastSelected.cell;
     const prevPos = this.lastSelected.pos;
     this.lastSelected = { program, cell, pos };
-    this.showSelectedCellDetails(pos, program);
+    this._showSelectedCellDetails(pos, program);
     const noChange = prevPos && prevPos.x == pos.x && prevPos.y == pos.y;
     if (noChange) return;
     if (prevCell) prevCell.markNotSelected();
@@ -485,7 +487,7 @@ class GridController {
     document.getElementById("copy-icon-validation").style.display = "none";
   }
 
-  showSelectedCellDetails(pos, program) {
+  _showSelectedCellDetails(pos, program) {
     const posStr = `Viewing: (${pos.x}, ${pos.y})`;
     const coloredDescription = this._toColoredFormat(program);
     const intFormat = program.join(",");
@@ -494,6 +496,15 @@ class GridController {
     document.getElementById("cell-details-0").innerText = posStr;
     document.getElementById("cell-details-1").innerText = intFormat;
     document.getElementById("cell-details-2").innerHTML = coloredDescription;
+  }
+
+  reCenterCamera(uiItems) {
+    const { camera } = uiItems;
+    camera.position.x = 0;
+    camera.position.y = 0;
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    this.reRender(uiItems);
   }
 }
 

@@ -55,6 +55,7 @@ eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
   history.init(miscSettings.historyFidelity, store.state);
   controller.updateGridUI(store, true);
   controller.stopRunning(store, runButton);
+  controller.reCenterCamera(store.uiItems);
 });
 
 eventHandleHelper.addEventListener("cell-details-edit-button", () => {
