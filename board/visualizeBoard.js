@@ -49,13 +49,7 @@ eventHandleHelper.addEventListener(buttonMapping.runButton, () => {
   controller.toggleRun(runButton, store, history, runSpec);
 });
 eventHandleHelper.addEventListener(buttonMapping.restartButton, () => {
-  controller.clear(store.uiItems);
-  const initSpec = controller.getInitSpec();
-  store.state = controller.initState(initSpec);
-  history.init(miscSettings.historyFidelity, store.state);
-  controller.updateGridUI(store, true);
-  controller.stopRunning(store, runButton);
-  controller.reCenterCamera(store.uiItems);
+  controller.generateNewBoard(store, history, runButton);
 });
 
 eventHandleHelper.addEventListener("cell-details-edit-button", () => {
@@ -109,9 +103,7 @@ document.getElementById('board-save-button').addEventListener('click', function(
   controller.save(store, history, runSpec);
 });
 
-/* zooming, panning, clicking */
-
-addCanvasControlls(store);
+addCanvasControlls(store, controller);
 
 window.store = store;
 window.HistoryManager = HistoryManager;

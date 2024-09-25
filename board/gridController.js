@@ -116,14 +116,9 @@ class GridController {
     this._addCopyIconEventListener();
     const { screenSize } = this.miscSettings;
     const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(
-      screenSize / -2,
-      screenSize / 2,
-      screenSize / 2,
-      screenSize / -2,
-      0.1,
-      10
-    );
+    const a = screenSize / -2;
+    const b = screenSize / 2;
+    const camera = new THREE.OrthographicCamera(a, b, b, a, 0.1, 10);
     camera.position.z = 1;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(screenSize, screenSize);
@@ -145,11 +140,13 @@ class GridController {
 
   updateGridUI({ state, uiItems }, toRecolor) {
     const { epoch, uniqueCells, grid } = state;
+    const { scene, cells } = uiItems;
     this._updateCounters(epoch, uniqueCells);
-    if (!uiItems.cells || toRecolor) {
-      uiItems.cells = this._createGridCells(grid, uiItems.scene);
+    if (!cells || toRecolor) {
+      uiItems.cells = this.createGridCells(grid, scene);
     } else {
-      this._updateGridCells(grid, uiItems.cells);
+      this._updateGridCells(grid, cells);
+      this._markReactedWith(grid, cells);
     }
     this.reRender(uiItems);
   }
@@ -166,17 +163,117 @@ class GridController {
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
-  _createGridCells(grid, scene) {
+  createGridCells(grid, scene) {
     const cells = [];
+    const gridMesh = this._createMesh(grid);
+    scene.add(gridMesh);
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
-        const program = grid[x][y];
         const cell = new Cell(x, y, grid.length, grid[x].length, scene);
-        cell.createMesh(program, this.logic);
         cells.push(cell);
       }
     }
+    const typicalProgramLen = grid[0][0].length;
+    cells.forEach((cell, i) => {
+      cell.setMeshProperties(gridMesh, 4 * i * typicalProgramLen);
+    });
     return cells;
+  }
+
+  _createMesh(grid) {
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const width = grid.length * ply;
+    const height = grid[0].length * ply;
+    const material = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const geometry = new THREE.PlaneGeometry(width, height);
+    const gridMesh = new THREE.Mesh(geometry, material);
+    gridMesh.position.set(0, 0, 0);
+    this._setPositionsBuffer(geometry, grid);
+    this._setColorsBuffer(geometry, grid);
+    return gridMesh;
+  }
+
+  _setPositionsBuffer(geometry, grid) {
+    const vertices = [];
+    const indices = [];
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const subX = (grid.length * ply) / 2;
+    const subY = (grid[0].length * ply) / 2;
+    let index = 0;
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[0].length; y++) {
+        const cellX = x * ply - subX;
+        const cellY = y * ply - subY;
+        const program = grid[x][y];
+        const out = this._cellPositionsBuffer(cellX, cellY, program, index);
+        vertices.push(...out.cellVertices);
+        indices.push(...out.cellIndices);
+        index += out.cellVertices.length / 3;
+      }
+    }
+    const buffer = new THREE.Float32BufferAttribute(vertices, 3);
+    geometry.setAttribute("position", buffer);
+    geometry.setIndex(indices);
+  }
+
+  _cellPositionsBuffer(cellCenterX, cellCenterY, program, indexStart) {
+    const cellVertices = [];
+    const cellIndices = [];
+    const { cellPxlSize } = miscSettings;
+    const sqrt = Math.floor(Math.sqrt(program.length));
+    const tileSize = cellPxlSize / sqrt;
+    let index = indexStart;
+    const sub = cellPxlSize / 2;
+    for (let y = 0; y < sqrt; y++) {
+      for (let x = 0; x < sqrt; x++) {
+        const xPoint = tileSize * x - sub;
+        const yPoint = tileSize * (sqrt - 1 - y) - sub;
+        const x1 = cellCenterX + xPoint;
+        const x2 = cellCenterX + xPoint + tileSize;
+        const y1 = cellCenterY + yPoint;
+        const y2 = cellCenterY + yPoint + tileSize;
+        cellVertices.push(x1, y1, 0);
+        cellVertices.push(x2, y1, 0);
+        cellVertices.push(x2, y2, 0);
+        cellVertices.push(x1, y2, 0);
+        cellIndices.push(index, index + 1, index + 2);
+        cellIndices.push(index, index + 2, index + 3);
+        index += 4;
+      }
+    }
+    return { cellVertices, cellIndices };
+  }
+
+  _setColorsBuffer(geometry, grid) {
+    const colorsBuffer = [];
+    for (let x = 0; x < grid.length; x++) {
+      for (let y = 0; y < grid[0].length; y++) {
+        const program = grid[x][y];
+        const cellColors = this._cellColorsBuffer(program);
+        colorsBuffer.push(...cellColors);
+      }
+    }
+    const buffer = new THREE.Float32BufferAttribute(colorsBuffer, 3);
+    geometry.setAttribute("color", buffer);
+  }
+
+  _cellColorsBuffer(program) {
+    const colors = [];
+    const sqrt = Math.floor(Math.sqrt(program.length));
+    for (let x = 0; x < sqrt; x++) {
+      for (let y = 0; y < sqrt; y++) {
+        const instruction = program[x * sqrt + y];
+        const colorStr = this.logic.intToColor(instruction);
+        const color = new THREE.Color(colorStr);
+        for (let i = 0; i < 4; i++) {
+          const rgb = [color.r, color.g, color.b];
+          colors.push(...rgb);
+        }
+      }
+    }
+    return colors;
   }
 
   _updateGridCells(grid, cells) {
@@ -188,6 +285,9 @@ class GridController {
         cell.updateMesh(program, this.logic);
       }
     }
+  }
+
+  _markReactedWith(grid, cells) {
     if (!!this.lastSelected.lastReactedWith) {
       const cell = this.lastSelected.cell;
       const { x, y, order } = this.lastSelected.lastReactedWith;
@@ -386,32 +486,50 @@ class GridController {
       placed.add(`${x}${y}`);
       grid[x][y] = program;
     });
-
     return grid;
   }
 
   onMouseDown(event, grid, uiItems) {
     const { renderer, camera, scene, cells } = uiItems;
+    const mouse = this._getMouse(event, renderer);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    if (intersects.length > 0) {
+      const intersect = intersects[intersects.length - 1];
+      const object = intersect.object;
+      if (object.userData.isCircle) return;
+      const { x, y } = this._getClickedPos(intersect, grid);
+      const program = grid[x][y];
+      const cell = cells[x * grid[x].length + y];
+      this._clickGrid({ x, y }, program, cell, uiItems);
+    } else {
+      this.deSelectCell();
+      this.reRender(uiItems);
+    }
+  }
+
+  _getMouse(event, renderer) {
     const { screenSize } = this.miscSettings;
     const mouse = new THREE.Vector2();
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / screenSize) * 2 + 1;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children);
-    if (intersects.length == 0) {
-      this.deSelectCell();
-      this.reRender(uiItems);
-      return;
-    }
-    let object = intersects[intersects.length - 1].object;
-    if (object.userData.isCircle) return;
-    const pos = object.userData.gridPosition;
-    const { x, y } = pos;
-    const program = grid[x][y];
-    const cell = cells[x * grid.length + y];
-    this._clickGrid(pos, program, cell, uiItems);
+    return mouse;
+  }
+
+  _getClickedPos(intersect, grid) {
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const point = intersect.point;
+    const localPoint = intersect.object.worldToLocal(point);
+    const ply = cellPxlSize + cellPaddingPxl;
+    const boardPoint = {
+      x: localPoint.x + (ply * grid.length) / 2 + ply / 2,
+      y: localPoint.y + (ply * grid[0].length) / 2 + ply / 2,
+    };
+    const x = Math.floor(boardPoint.x / ply);
+    const y = Math.floor(boardPoint.y / ply);
+    return { x, y };
   }
 
   zoom(event, uiItems) {
@@ -450,7 +568,7 @@ class GridController {
     camera.position.x -= deltaMove.x / camera.zoom;
     camera.position.y += deltaMove.y / camera.zoom;
     this.reRender(uiItems);
-    return 
+    return;
   }
 
   _mouseOutOfBounds(rect, event) {
@@ -498,13 +616,29 @@ class GridController {
     document.getElementById("cell-details-2").innerHTML = coloredDescription;
   }
 
-  reCenterCamera(uiItems) {
+  reCenterCamera(uiItems, width, height) {
     const { camera } = uiItems;
-    camera.position.x = 0;
-    camera.position.y = 0;
-    camera.zoom = 1;
+    const { screenSize, cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const ratio = screenSize / (ply * Math.max(width, height));
+    camera.position.x = -ply / 2;
+    camera.position.y = -ply / 2;
+    camera.zoom = ratio;
     camera.updateProjectionMatrix();
     this.reRender(uiItems);
+  }
+
+  generateNewBoard(store, history, runButton) {
+    this.clear(store.uiItems);
+    const initSpec = this.getInitSpec();
+    store.state = this.initState(initSpec);
+    history.init(miscSettings.historyFidelity, store.state);
+    this.createGridCells(store.state.grid, store.uiItems.scene);
+    this.stopRunning(store, runButton);
+    const width = store.state.grid.length;
+    const length = store.state.grid[0].length;
+    this.reCenterCamera(store.uiItems, width, length);
+    this.reRender(store.uiItems);
   }
 }
 

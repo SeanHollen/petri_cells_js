@@ -5,117 +5,42 @@ class Cell {
   constructor(x, y, gridWidth, gridHeight, scene) {
     this.x = x;
     this.y = y;
-    const cellSize = miscSettings.cellPxlSize;
-    const padding = miscSettings.cellPaddingPxl;
-    this.xPoint = this.x * (cellSize + padding) - (gridWidth * (cellSize + padding)) / 2;
-    this.yPoint = this.y * (cellSize + padding) - (gridHeight * (cellSize + padding)) / 2;
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const subX = gridWidth * ply / 2;
+    const subY = gridHeight * ply / 2;
+    this.xPoint = this.x * ply - subX;
+    this.yPoint = this.y * ply - subY;
     this.scene = scene
   }
 
-  createMesh(program, logic) {
-    const rowLen = Math.floor(Math.sqrt(program.length));
-    const { cellPxlSize } = miscSettings;
-    const geometry = new THREE.PlaneGeometry(
-      cellPxlSize,
-      cellPxlSize,
-      rowLen,
-      rowLen
-    );
-    this._setPositionsBuffer(geometry, cellPxlSize, program);
-    this._setColorsBuffer(geometry, program, logic);
-    const material = new THREE.MeshBasicMaterial({ vertexColors: true });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(this.xPoint, this.yPoint, 0);
-    mesh.userData.gridPosition = { x: this.x, y: this.y };
-    this.mesh = mesh;
-    this.scene.add(this.mesh);
-  }
-
-  _setPositionsBuffer(geometry, cellSize, program) {
-    const vertices = [];
-    const indices = [];
-    const sqrt = Math.floor(Math.sqrt(program.length));
-    const tileSize = cellSize / sqrt;
-    let index = 0;
-    for (let y = 0; y < sqrt; y++) {
-      for (let x = 0; x < sqrt; x++) {
-        const xPoint = tileSize * x - cellSize / 2;
-        // const yPoint = (tileSize * y) - (cellSize / 2);
-        const yPoint = (sqrt - 1 - y) * tileSize - cellSize / 2;
-        // 1 vertex for each of 4 corners
-        const squareVertices = [
-          xPoint,
-          yPoint,
-          0,
-          xPoint + tileSize,
-          yPoint,
-          0,
-          xPoint + tileSize,
-          yPoint + tileSize,
-          0,
-          xPoint,
-          yPoint + tileSize,
-          0,
-        ];
-        vertices.push(...squareVertices);
-        indices.push(index, index + 1, index + 2);
-        indices.push(index, index + 2, index + 3);
-        index += 4;
-      }
-    }
-    geometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
-    );
-    geometry.setIndex(indices);
-  }
-
-  _setColorsBuffer(geometry, program, logic) {
-    const tileColors = [];
-    const sqrt = Math.floor(Math.sqrt(program.length));
-    for (let x = 0; x < sqrt; x++) {
-      for (let y = 0; y < sqrt; y++) {
-        const instruction = program[x * sqrt + y];
-        const color = this._threeColor(instruction, logic);
-        for (let i = 0; i < 4; i++) {
-          const rgb = [color.r, color.g, color.b];
-          tileColors.push(...rgb);
-        }
-      }
-    }
-    geometry.setAttribute(
-      "color",
-      new THREE.Float32BufferAttribute(tileColors, 3)
-    );
-    this.prevProgram = program;
+  setMeshProperties(gridMesh, colorIdxStart) {
+    this.gridMesh = gridMesh;
+    this.colorIdxStart = colorIdxStart;
   }
 
   updateMesh(program, logic) {
     this._removeArrow();
-    const colors = this.mesh.geometry.attributes.color;
-    for (let i = 0; i < program.length; i++) {
-      const instruction = program[i];
-      if (this.prevProgram && this.prevProgram[i] == instruction) continue;
-      const color = this._threeColor(instruction, logic);
+    const colors = this.gridMesh.geometry.attributes.color;
+    program.forEach((instruction, i) => {
+      const noChange = this.prevProgram && this.prevProgram[i] == instruction;
+      if (noChange) return;
+      const colorStr = logic.intToColor(instruction);
+      const color = new THREE.Color(colorStr);
+      const colorIdx = this.colorIdxStart + (i * 4);
       for (let x = 0; x < 4; x++) {
-        const idx = i * 4 + x;
-        colors.setXYZ(idx, color.r, color.g, color.b);
+        colors.setXYZ(colorIdx + x, color.r, color.g, color.b);
       }
-    }
+    });
     colors.needsUpdate = true;
     this.prevProgram = program;
   }
 
-  _threeColor(instruction, logic) {
-    const colorStr = logic.intToColor(instruction);
-    return new THREE.Color(colorStr);
-  }
-
   removeCell() {
     this.markNotSelected();
-    this.scene.remove(this.mesh);
-    this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    this.scene.remove(this.gridMesh);
+    this.gridMesh.geometry.dispose();
+    this.gridMesh.material.dispose();
   }
 
   markSelected() {

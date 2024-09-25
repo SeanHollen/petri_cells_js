@@ -1,4 +1,4 @@
-const addCanvasControlls = (store) => {
+const addCanvasControlls = (store, controller) => {
   const renderer = store.uiItems.renderer;
   let isDragging = false;
   let prevMouse = null;
