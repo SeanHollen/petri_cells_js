@@ -14,12 +14,13 @@ class GridController {
     this.miscSettings = miscSettings;
   }
 
+  // create state objects
   initState({ width, height, programLength, seed }) {
     const rng = new Mulberry32(seed);
     const initializationMode = this.miscSettings.initializationMode;
     this.tuples = [];
-    for (let x = 0; x < height; x++) {
-      for (let y = 0; y < width; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
         this.tuples.push([x, y]);
       }
     }
@@ -39,6 +40,7 @@ class GridController {
     };
   }
 
+  // move state progress forward one step
   updateState(state, runSpec) {
     const { range, noiseAction, pctNoise, bfLogic } = runSpec;
     this.logic = bfLogic;
@@ -98,30 +100,35 @@ class GridController {
     return set.size;
   }
 
+  // move state progress back to the last epoch in history
   backState(history, state) {
-    return history.get(state.epoch - 1);
+    delete this.lastSelected.lastReactedWith;
+    const newState = history.get(state.epoch - 1);
+    return newState;
   }
 
-  clear(uiItems) {
-    const { cells } = uiItems;
+  // cleanup everything associated with uiItems
+  clearUI(uiItems) {
+    const { cells, scene } = uiItems;
     this.deSelectCell();
     cells.forEach((cell) => {
-      cell.removeCell();
+      cell.markNotSelected();
+    });
+    scene.children.forEach((child) => {
+      scene.remove(child);
+      child.geometry.dispose();
+      child.material.dispose();
     });
   }
 
+  // create objects associated with uiItems, except for cells (see createGridCells)
   initGridUI() {
     this._addCopyIconEventListener();
     const { screenSize } = this.miscSettings;
     const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(
-      screenSize / -2,
-      screenSize / 2,
-      screenSize / 2,
-      screenSize / -2,
-      0.1,
-      10
-    );
+    const a = screenSize / -2;
+    const b = screenSize / 2;
+    const camera = new THREE.OrthographicCamera(a, b, b, a, 0.1, 10);
     camera.position.z = 1;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(screenSize, screenSize);
@@ -141,51 +148,103 @@ class GridController {
     });
   }
 
-  updateGridUI({ state, uiItems }, toRecolor) {
+  // look through state and make sure that everything is reflected in uiItems
+  updateGridUI({ state, uiItems }, spec) {
     const { epoch, uniqueCells, grid } = state;
-    this.updateCounters(epoch, uniqueCells);
-    if (!uiItems.cells || toRecolor) {
-      uiItems.cells = this.createGridCells(grid, uiItems.scene);
-    } else {
-      this.updateGridCells(grid, uiItems.cells);
+    const { cells } = uiItems;
+    this._updateCounters(epoch, uniqueCells);
+    this._updateGridCells(grid, cells, spec?.toRecolor);
+    const atHighSpeed = spec?.speed > 50;
+    if (!atHighSpeed) {
+      this._markReactedWith(grid, cells);
     }
     this.reRender(uiItems);
   }
 
+  // trigger a re-draw of the screen
   reRender(uiItems) {
     const { renderer, scene, camera } = uiItems;
     renderer.render(scene, camera);
   }
 
-  updateCounters(epoch, uniqueCells) {
+  _updateCounters(epoch, uniqueCells) {
     document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
     document.getElementById(
       "unique-cells"
     ).textContent = `Unique Cells: ${uniqueCells}`;
   }
 
+  // creates the uiItems.cells objects from scratch, based on state
   createGridCells(grid, scene) {
     const cells = [];
+    const w = grid.length;
+    const h = grid[0].length;
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
-        const program = grid[x][y];
-        const cell = new Cell(x, y, grid.length, grid[x].length, scene);
-        cell.createMesh(program, this.logic);
+        const p = grid[x][y];
+        const cell = new Cell(x, y, w, h, scene, p);
         cells.push(cell);
       }
     }
+    const gridMesh = this._createMesh(cells, w, h);
+    scene.add(gridMesh);
+    cells.forEach((cell, i) => {
+      cell.setMeshProperties(gridMesh, 4 * i * grid[0][0].length);
+    });
     return cells;
   }
 
-  updateGridCells(grid, cells) {
+  _createMesh(cells, width, height) {
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const pxlWidth = width * ply;
+    const pxlHeight = height * ply;
+    const material = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const geometry = new THREE.PlaneGeometry(pxlWidth, pxlHeight);
+    const gridMesh = new THREE.Mesh(geometry, material);
+    gridMesh.position.set(0, 0, 0);
+    this._setPositionsBuffer(geometry, cells);
+    this._setColorsBuffer(geometry, cells);
+    return gridMesh;
+  }
+
+  _setPositionsBuffer(geometry, cells) {
+    const vertices = [];
+    const indices = [];
+    let index = 0;
+    cells.forEach((cell) => {
+      const { cellVertices, cellIndices } = cell.cellPositionsBuffer(index);
+      vertices.push(...cellVertices);
+      indices.push(...cellIndices);
+      index += cellVertices.length / 3;
+    });
+    const buffer = new THREE.Float32BufferAttribute(vertices, 3);
+    geometry.setAttribute("position", buffer);
+    geometry.setIndex(indices);
+  }
+
+  _setColorsBuffer(geometry, cells) {
+    const colorsBuffer = [];
+    cells.forEach((cell) => {
+      const cellColors = cell.cellColorsBuffer(this.logic);
+      colorsBuffer.push(...cellColors);
+    })
+    const buffer = new THREE.Float32BufferAttribute(colorsBuffer, 3);
+    geometry.setAttribute("color", buffer);
+  }
+
+  _updateGridCells(grid, cells, toRecolor) {
     for (let x = 0; x < grid.length; x++) {
       for (let y = 0; y < grid[x].length; y++) {
         const program = grid[x][y];
         const i = x * grid[x].length + y;
         const cell = cells[i];
-        cell.updateMesh(program, this.logic);
+        cell.update(program, this.logic, toRecolor);
       }
     }
+  }
+
+  _markReactedWith(grid, cells) {
     if (!!this.lastSelected.lastReactedWith) {
       const cell = this.lastSelected.cell;
       const { x, y, order } = this.lastSelected.lastReactedWith;
@@ -195,24 +254,28 @@ class GridController {
     }
   }
 
+  // push state to history, and make sure any changes to runSpec will effect
   save(store, history, runSpec) {
+    this.logic = runSpec.bfLogic;
     const timeDirection = store.timeDirection;
     this.stopRunning(store);
     history.addState(store.state);
     if (timeDirection) {
-      this.startRun(store, history, runSpec);
+      this._startRun(store, history, runSpec);
     }
+    this.updateGridUI(store, runSpec);
   }
 
+  // result of clicking the button to start or stop the run
   toggleRun(button, store, history, runSpec) {
     if (!store.timeDirection) {
-      this.startRun(store, history, runSpec, button);
+      this._startRun(store, history, runSpec, button);
     } else {
       this.stopRunning(store, button);
     }
   }
 
-  startRun(store, history, runSpec, button) {
+  _startRun(store, history, runSpec, button) {
     if (!!button) button.textContent = "Pause";
     let speed = runSpec.speed;
     if (speed < 0) {
@@ -235,17 +298,19 @@ class GridController {
           history.noteState(store.state);
         }
       }
-      this.updateGridUI(store, runSpec.toRecolor);
+      this.updateGridUI(store, runSpec);
       runSpec.toRecolor = false;
     }, 1000 / speed);
   }
 
+  // step repeatedly progressing state
   stopRunning(store, button) {
     store.timeDirection = 0;
     if (!!button) button.textContent = "Run";
     clearInterval(this.runInterval);
   }
 
+  // view cell details upon selecting it
   enterCellEditMode() {
     const map = {
       "copy-icon": "none",
@@ -267,6 +332,7 @@ class GridController {
     );
   }
 
+  // close the menu for viewing cell details
   exitCellEditMode() {
     const map = {
       "copy-icon": "inline-block",
@@ -282,6 +348,7 @@ class GridController {
     });
   }
 
+  // make updates to some program and its cell upon clicking save on nums edit form
   editProgramWithNumsForm(state, inputVal, uiItems) {
     const isIntegerFormat = /^[,\-\d]+$/.test(inputVal);
     if (!isIntegerFormat) return;
@@ -290,9 +357,10 @@ class GridController {
       (i) => !isNaN(i) && i !== null && i !== undefined
     );
     if (!validValues) return;
-    this.submitProgram(intArr, state.grid, uiItems);
+    this._submitProgram(intArr, state.grid, uiItems);
   }
 
+  // make updates to some program and its cell upon clicking save on colors edit form
   editProgramWithColorsForm(state, inputVal, uiItems) {
     const textNoWhitespace = inputVal.replace(/\s+/g, "");
     const isHrBfFormat = /^[a-zA-Z0-9{}\-\+\<\>\.,\[\]%&]+$/.test(
@@ -300,19 +368,19 @@ class GridController {
     );
     if (!isHrBfFormat) return;
     const intArr = this.logic.fromHumanReadableStr(textNoWhitespace);
-    this.submitProgram(intArr, state.grid, uiItems);
+    this._submitProgram(intArr, state.grid, uiItems);
   }
 
-  submitProgram(program, grid, uiItems) {
+  _submitProgram(program, grid, uiItems) {
     const typicalProgramLength = grid[0][0].length;
     program = program.slice(0, typicalProgramLength);
     while (program.length < typicalProgramLength) program.push(0);
     this.lastSelected.program = program;
-    this.showSelectedCellDetails(this.lastSelected.pos, program);
+    this._showSelectedCellDetails(this.lastSelected.pos, program);
     const { x, y } = this.lastSelected.pos;
     grid[x][y] = program;
     this.exitCellEditMode();
-    this.lastSelected.cell.updateMesh(program, this.logic);
+    this.lastSelected.cell.update(program, this.logic);
     this.reRender(uiItems);
   }
 
@@ -331,6 +399,7 @@ class GridController {
       .join("");
   }
 
+  // grab the configuration for making changes
   getRunSpec() {
     const rangeForm = document.getElementById("grid-range")[0];
     const range = parseFloat(rangeForm.value);
@@ -349,7 +418,7 @@ class GridController {
     return { range, speed, noiseAction, pctNoise, bfLogic, toRecolor };
   }
 
-  getSeed() {
+  _getSeed() {
     const seedInput = document.getElementById("seed")[0].value;
     if (seedInput === "") {
       return Math.floor(Math.random() * 4294967296) >>> 0;
@@ -360,6 +429,7 @@ class GridController {
     }
   }
 
+  // get configuration for initializing a new grid
   getInitSpec() {
     const inputtedWidth = document.getElementById("bf-w")[0].value;
     const width = parseInt(inputtedWidth) || 20;
@@ -367,10 +437,11 @@ class GridController {
     const height = parseInt(inputtedHeight) || 20;
     const inputtedProgramLength = document.getElementById("cell-size").value;
     const programLength = parseInt(inputtedProgramLength) || 64;
-    const seed = this.getSeed();
+    const seed = this._getSeed();
     return { width, height, programLength, seed };
   }
 
+  // currently unused function for assigning certain programs on the grid
   placeProgramsRandomly(grid, programs, rng) {
     const height = grid.length;
     const width = grid[0].length;
@@ -384,39 +455,59 @@ class GridController {
       placed.add(`${x}${y}`);
       grid[x][y] = program;
     });
-
     return grid;
   }
 
+  // handle all effects that result from clicking on the screen
   onMouseDown(event, grid, uiItems) {
     const { renderer, camera, scene, cells } = uiItems;
+    const mouse = this._getMouse(event, renderer);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+    if (intersects.length > 0) {
+      const intersect = intersects[intersects.length - 1];
+      const object = intersect.object;
+      if (object.userData.isCircle) return;
+      const { x, y } = this._getClickedPos(intersect, grid);
+      const program = grid[x][y];
+      const cell = cells[x * grid[x].length + y];
+      this._clickGrid({ x, y }, program, cell, uiItems);
+    } else {
+      this.deSelectCell();
+      this.reRender(uiItems);
+    }
+  }
+
+  _getMouse(event, renderer) {
     const { screenSize } = this.miscSettings;
     const mouse = new THREE.Vector2();
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / screenSize) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / screenSize) * 2 + 1;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children);
-    if (intersects.length == 0) {
-      this.deSelectCell();
-      this.reRender(uiItems);
-      return;
-    }
-    let object = intersects[intersects.length - 1].object;
-    if (object.userData.isCircle) return;
-    const pos = object.userData.gridPosition;
-    const { x, y } = pos;
-    const program = grid[x][y];
-    const cell = cells[x * grid.length + y];
-    this.clickGrid(pos, program, cell, uiItems);
+    return mouse;
   }
 
+  _getClickedPos(intersect, grid) {
+    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+    const point = intersect.point;
+    const localPoint = intersect.object.worldToLocal(point);
+    const ply = cellPxlSize + cellPaddingPxl;
+    const boardPoint = {
+      x: localPoint.x + (ply * grid.length) / 2 + ply / 2,
+      y: localPoint.y + (ply * grid[0].length) / 2 + ply / 2,
+    };
+    const x = Math.floor(boardPoint.x / ply);
+    const y = Math.floor(boardPoint.y / ply);
+    return { x, y };
+  }
+
+  // handle zooming of the screen
   zoom(event, uiItems) {
     const { zoomSpeed } = this.miscSettings;
     const { renderer, camera } = uiItems;
     const rect = renderer.domElement.getBoundingClientRect();
-    if (this.mouseOutOfBounds(rect, event)) return;
+    if (this._mouseOutOfBounds(rect, event)) return;
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     event.preventDefault();
@@ -435,10 +526,11 @@ class GridController {
     this.reRender(uiItems);
   }
 
+  // handle click-to-drag of the screen
   drag(event, uiItems, prevMouse) {
     const { camera, renderer } = uiItems;
     const rect = renderer.domElement.getBoundingClientRect();
-    if (this.mouseOutOfBounds(rect, event)) return;
+    if (this._mouseOutOfBounds(rect, event)) return;
 
     const deltaMove = {
       x: event.clientX - prevMouse.x,
@@ -447,11 +539,11 @@ class GridController {
 
     camera.position.x -= deltaMove.x / camera.zoom;
     camera.position.y += deltaMove.y / camera.zoom;
-    this.reRender(store.uiItems);
-    return 
+    this.reRender(uiItems);
+    return;
   }
 
-  mouseOutOfBounds(rect, event) {
+  _mouseOutOfBounds(rect, event) {
     const mouseX = event.clientX;
     const mouseY = event.clientY;
     return (
@@ -462,12 +554,12 @@ class GridController {
     );
   }
 
-  clickGrid(pos, program, cell, uiItems) {
+  _clickGrid(pos, program, cell, uiItems) {
     this.exitCellEditMode();
     const prevCell = this.lastSelected.cell;
     const prevPos = this.lastSelected.pos;
     this.lastSelected = { program, cell, pos };
-    this.showSelectedCellDetails(pos, program);
+    this._showSelectedCellDetails(pos, program);
     const noChange = prevPos && prevPos.x == pos.x && prevPos.y == pos.y;
     if (noChange) return;
     if (prevCell) prevCell.markNotSelected();
@@ -475,6 +567,7 @@ class GridController {
     this.reRender(uiItems);
   }
 
+  // actions that result from a cell no longer being selected
   deSelectCell() {
     this.exitCellEditMode();
     if (!!this.lastSelected.cell) {
@@ -485,7 +578,7 @@ class GridController {
     document.getElementById("copy-icon-validation").style.display = "none";
   }
 
-  showSelectedCellDetails(pos, program) {
+  _showSelectedCellDetails(pos, program) {
     const posStr = `Viewing: (${pos.x}, ${pos.y})`;
     const coloredDescription = this._toColoredFormat(program);
     const intFormat = program.join(",");
@@ -494,6 +587,40 @@ class GridController {
     document.getElementById("cell-details-0").innerText = posStr;
     document.getElementById("cell-details-1").innerText = intFormat;
     document.getElementById("cell-details-2").innerHTML = coloredDescription;
+  }
+
+  // snap camera to center and zoomed to view the whole grid
+  reCenterCamera(uiItems, width, height) {
+    const { camera } = uiItems;
+    const { screenSize, cellPxlSize, cellPaddingPxl } = miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const ratio = screenSize / (ply * Math.max(width, height));
+    camera.position.x = -ply / 2;
+    camera.position.y = -ply / 2;
+    camera.zoom = Math.min(ratio, 1);
+    camera.updateProjectionMatrix();
+    this.reRender(uiItems);
+  }
+
+  // effects of clicking the "generate" button
+  generateNewBoard(store, history, runButton) {
+    this.clearUI(store.uiItems);
+    this.stopRunning(store, runButton);
+    const initSpec = this.getInitSpec();
+    store.state = this.initState(initSpec);
+    history.init(miscSettings.historyFidelity, store.state);
+    this.presentGridCells(store);
+  }
+
+  // wrapper for update store with cells from createGridCells,
+  // then re-render with reCenterCamera & reRender so the changes appear
+  presentGridCells(store) {
+    const { uiItems, state } = store;
+    uiItems.cells = this.createGridCells(state.grid, uiItems.scene);
+    const width = store.state.grid.length;
+    const length = store.state.grid[0].length;
+    this.reCenterCamera(store.uiItems, width, length);
+    this.reRender(uiItems);
   }
 }
 

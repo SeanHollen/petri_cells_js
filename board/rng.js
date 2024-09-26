@@ -1,6 +1,9 @@
 class Mulberry32 {
   constructor(seed) {
-    this.state = seed >>> 0;
+    if (seed < 0) {
+      console.error(`seed ${seed} is negative! this may lead to unespected behavior`);
+    }
+    this.state = seed;
   }
 
   random() {
