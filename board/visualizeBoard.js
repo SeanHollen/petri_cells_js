@@ -14,7 +14,7 @@ const history = new HistoryManager().init(
   miscSettings.historyFidelity,
   store.state
 );
-controller.updateGridUI(store);
+controller.presentGridCells(store);
 
 const buttonMapping = {
   backButton: "board-back-button",
@@ -26,13 +26,13 @@ const buttonMapping = {
 const backAction = () => {
   const runSpec = controller.getRunSpec();
   store.state = controller.backState(history, store.state);
-  controller.updateGridUI(store, runSpec.toRecolor);
+  controller.updateGridUI(store, runSpec);
 };
 const stepAction = () => {
   const runSpec = controller.getRunSpec();
   store.state = controller.updateState(store.state, runSpec);
   history.addState(store.state);
-  controller.updateGridUI(store, runSpec.toRecolor);
+  controller.updateGridUI(store, runSpec);
 };
 
 const eventHandleHelper = new EventHandleHelper(
