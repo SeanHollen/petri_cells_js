@@ -30,7 +30,7 @@ const backAction = () => {
 };
 const stepAction = () => {
   const runSpec = controller.getRunSpec();
-  store.state = controller.updateState(store.state, runSpec);
+  store.state = controller.updateState(store.state, runSpec, true);
   history.addState(store.state);
   controller.updateGridUI(store, runSpec);
 };

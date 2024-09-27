@@ -5,6 +5,7 @@ import { Noise } from "./noise.js";
 import { Mulberry32, hashStringToInt } from "./rng.js";
 import { Cell } from "./cell.js";
 import miscSettings from "../miscSettings.js";
+import { inflate, deflate } from 'https://cdn.jsdelivr.net/npm/pako@latest/dist/pako.esm.mjs';
 
 class GridController {
   constructor() {
@@ -32,16 +33,18 @@ class GridController {
         return BrainfuckLogic.randomProgram(programLength, rng);
       })
     );
+    const compression = this._calculateCompression(grid);
     return {
       epoch: 0,
       uniqueCells: width * height,
+      compression: compression,
       grid: grid,
       rng: rng,
     };
   }
 
   // move state progress forward one step
-  updateState(state, runSpec) {
+  updateState(state, runSpec, updateAll) {
     const { range, noiseAction, pctNoise, bfLogic } = runSpec;
     this.logic = bfLogic;
     let grid = state.grid;
@@ -81,10 +84,15 @@ class GridController {
       const spec = { quantileKilled: pctNoise / 100 };
       grid = Noise[noiseAction](grid, rng, spec);
     }
+    let compression = state.compression;
+    if (updateAll || (state.epoch * 10) % runSpec?.speed === 0) {
+      compression = this._calculateCompression(grid);
+    }
     return {
       rng: rng,
       epoch: state.epoch + 1,
       uniqueCells: this._countUniqueCells(grid),
+      compression: compression,
       grid: grid,
     };
   }
@@ -98,6 +106,42 @@ class GridController {
       });
     });
     return set.size;
+  }
+
+  _calculateCompression(grid) {
+    const flat = grid.flat(2);
+    const compressed = deflate(new Uint8Array(flat));
+    const cRatio = flat.length / compressed.length;
+    const rounded = Math.floor(cRatio * 100) / 100;
+    return rounded;
+  }
+
+  // slow, but closer to the "complexity" measure in the paper
+  _calcAvgComplexity(grid) {
+    const flat = grid.flat();
+    const total = flat.reduce((sum, program) => {
+      const entropy = this._entropy(program);
+      const compressed = deflate(new Uint8Array(program));
+      const cratio = compressed.length / program.length
+      const complexity = entropy - cratio;
+      return sum + complexity;
+    }, 0);
+    const avgComplexity = total / flat.length;
+    const rounded = Math.floor(avgComplexity * 100) / 100;
+    return rounded;
+  }
+
+  _entropy(program) {
+    const dict = {}
+    program.forEach((x) => {
+      if (!dict[x]) dict[x] = 0;
+      dict[x]++;
+    });
+    return Object.values(dict)
+      .reduce((entropy, count) => {
+        const px = count / program.length;
+        return entropy - px * Math.log(px, 2);
+      }, 0)
   }
 
   // move state progress back to the last epoch in history
@@ -150,13 +194,11 @@ class GridController {
 
   // look through state and make sure that everything is reflected in uiItems
   updateGridUI({ state, uiItems }, spec) {
-    const { epoch, uniqueCells, grid } = state;
-    const { cells } = uiItems;
-    this._updateCounters(epoch, uniqueCells);
-    this._updateGridCells(grid, cells, spec?.toRecolor);
+    this._updateCounters(state);
+    this._updateGridCells(state.grid, uiItems.cells, spec?.toRecolor);
     const atHighSpeed = spec?.speed > 50;
     if (!atHighSpeed) {
-      this._markReactedWith(grid, cells);
+      this._markReactedWith(state.grid, uiItems.cells);
     }
     this.reRender(uiItems);
   }
@@ -167,11 +209,16 @@ class GridController {
     renderer.render(scene, camera);
   }
 
-  _updateCounters(epoch, uniqueCells) {
-    document.getElementById("step-counter").textContent = `Epoch: ${epoch}`;
-    document.getElementById(
-      "unique-cells"
-    ).textContent = `Unique Cells: ${uniqueCells}`;
+  _updateCounters(state) {
+    const { epoch, uniqueCells, compression } = state;
+    const mapping = {
+      "step-counter": `Epoch: ${epoch}`,
+      "unique-cells": `Unique Cells: ${uniqueCells}`,
+      "compression": `Compression: ${compression}`,
+    }
+    Object.keys(mapping).forEach((k) => {
+      document.getElementById(k).textContent = mapping[k];
+    });
   }
 
   // creates the uiItems.cells objects from scratch, based on state
