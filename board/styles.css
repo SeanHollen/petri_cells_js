@@ -3,6 +3,11 @@
     font-size: 18px;
     padding-right: 10px;
     margin-bottom: 10px;
+    min-width: 200px;
+}
+
+#step-counter {
+    min-width: 125px
 }
 
 .cell-details {

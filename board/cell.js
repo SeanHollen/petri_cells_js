@@ -19,13 +19,12 @@ class Cell {
     this.colorIdxStart = colorIdxStart;
   }
 
-  cellPositionsBuffer(indexStart) {
+  cellPositionsBuffer(idxPointer) {
     const program = this.program;
-    const cellVertices = [];
+    const cellVerticies = [];
     const cellIndices = [];
     const sqrt = Math.floor(Math.sqrt(program.length));
     const tileSize = this.cellPxlSize / sqrt;
-    let index = indexStart;
     const sub = this.cellPxlSize / 2;
     for (let y = 0; y < sqrt; y++) {
       for (let x = 0; x < sqrt; x++) {
@@ -35,16 +34,16 @@ class Cell {
         const x2 = this.cellPointX + xPoint + tileSize;
         const y1 = this.cellPointY + yPoint;
         const y2 = this.cellPointY + yPoint + tileSize;
-        cellVertices.push(x1, y1, 0);
-        cellVertices.push(x2, y1, 0);
-        cellVertices.push(x2, y2, 0);
-        cellVertices.push(x1, y2, 0);
-        cellIndices.push(index, index + 1, index + 2);
-        cellIndices.push(index, index + 2, index + 3);
-        index += 4;
+        cellVerticies.push(x1, y1, 0);
+        cellVerticies.push(x2, y1, 0);
+        cellVerticies.push(x2, y2, 0);
+        cellVerticies.push(x1, y2, 0);
+        cellIndices.push(idxPointer, idxPointer + 1, idxPointer + 2);
+        cellIndices.push(idxPointer, idxPointer + 2, idxPointer + 3);
+        idxPointer += 4;
       }
     }
-    return { cellVertices, cellIndices };
+    return { cellVerticies, cellIndices };
   }
 
   cellColorsBuffer(logic) {

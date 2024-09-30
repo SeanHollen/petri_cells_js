@@ -4,6 +4,7 @@ import { getLanguageMapping } from "../shared/readLanguageMapping.js";
 import { Noise } from "./noise.js";
 import { Mulberry32, hashStringToInt } from "./rng.js";
 import { Cell } from "./cell.js";
+import { MeshStore } from "./meshStore.js";
 import miscSettings from "../miscSettings.js";
 import { inflate, deflate } from 'https://cdn.jsdelivr.net/npm/pako@latest/dist/pako.esm.mjs';
 
@@ -25,8 +26,8 @@ class GridController {
         this.tuples.push([x, y]);
       }
     }
-    const grid = Array.from({ length: height }, () =>
-      Array.from({ length: width }, () => {
+    const grid = Array.from({ length: width }, () =>
+      Array.from({ length: height }, () => {
         if (initializationMode === "dataOnly") {
           return BrainfuckLogic.randomData(programLength, rng);
         }
@@ -54,9 +55,8 @@ class GridController {
     const outRange = 2 * range + 1;
     const seen = new Array(width * height).fill(false);
 
-    const tuples = [...this.tuples].sort(() => rng.random() - 0.5);
     const selected = this.lastSelected.pos;
-    tuples.forEach((tuple) => {
+    this._getShuffled(this.tuples, rng).forEach((tuple) => {
       const [x, y] = tuple;
       const xOff = Math.floor(rng.random() * outRange) - range;
       const x2 = (x + xOff + height) % height;
@@ -95,6 +95,14 @@ class GridController {
       compression: compression,
       grid: grid,
     };
+  }
+
+  _getShuffled(array, rng) {
+    const taggedValues = array.map(value => {
+      return { value, sort: rng.random() };
+    });
+    const sorted = taggedValues.sort((a, b) => a.sort - b.sort);
+    return sorted.map(({ value }) => value);
   }
 
   _countUniqueCells(grid) {
@@ -158,7 +166,9 @@ class GridController {
     cells.forEach((cell) => {
       cell.markNotSelected();
     });
-    scene.children.forEach((child) => {
+    // "..." to clone the array, because otherwise, the concurrent modification 
+    // leads to unexpected behavior, where only the first one gets removed
+    [...scene.children].forEach((child) => {
       scene.remove(child);
       child.geometry.dispose();
       child.material.dispose();
@@ -233,16 +243,30 @@ class GridController {
         cells.push(cell);
       }
     }
-    const gridMesh = this._createMesh(cells, w, h);
-    scene.add(gridMesh);
+    const typicalProgramLen = grid[0][0].length;
+    const meshStore = this._createMesh(cells, typicalProgramLen);
+    meshStore.addMeshesToScene(scene);
     cells.forEach((cell, i) => {
-      cell.setMeshProperties(gridMesh, 4 * i * grid[0][0].length);
+      const { mesh, writeIndex } = meshStore.propsForNthCell(i);
+      cell.setMeshProperties(mesh, writeIndex);
     });
-    return cells;
+    return { cells, meshStore, };
   }
 
-  _createMesh(cells, width, height) {
-    const { cellPxlSize, cellPaddingPxl } = miscSettings;
+  _createMesh(cells, typicalProgramLen) {
+    const meshStore = new MeshStore();
+    const numCells = cells.length;
+    meshStore.initMeshes(numCells, typicalProgramLen);
+    const partitions = meshStore.partitionCells(cells);
+    partitions.forEach(({ mesh, cellGroup }) => {
+      this._setPositionsBuffer(mesh, cellGroup);
+      this._setColorsBuffer(mesh, cellGroup);
+    });
+    return meshStore;
+  }
+
+  _initMesh(width, height) {
+    const { cellPxlSize, cellPaddingPxl } = this.miscSettings;
     const ply = cellPxlSize + cellPaddingPxl;
     const pxlWidth = width * ply;
     const pxlHeight = height * ply;
@@ -250,34 +274,32 @@ class GridController {
     const geometry = new THREE.PlaneGeometry(pxlWidth, pxlHeight);
     const gridMesh = new THREE.Mesh(geometry, material);
     gridMesh.position.set(0, 0, 0);
-    this._setPositionsBuffer(geometry, cells);
-    this._setColorsBuffer(geometry, cells);
     return gridMesh;
   }
 
-  _setPositionsBuffer(geometry, cells) {
+  _setPositionsBuffer(gridMesh, cells) {
     const vertices = [];
     const indices = [];
-    let index = 0;
+    let idxPointer = 0;
     cells.forEach((cell) => {
-      const { cellVertices, cellIndices } = cell.cellPositionsBuffer(index);
-      vertices.push(...cellVertices);
+      const { cellVerticies, cellIndices } = cell.cellPositionsBuffer(idxPointer);
+      vertices.push(...cellVerticies);
       indices.push(...cellIndices);
-      index += cellVertices.length / 3;
+      idxPointer += cellVerticies.length / 3;
     });
     const buffer = new THREE.Float32BufferAttribute(vertices, 3);
-    geometry.setAttribute("position", buffer);
-    geometry.setIndex(indices);
+    gridMesh.geometry.setAttribute("position", buffer);
+    gridMesh.geometry.setIndex(indices);
   }
 
-  _setColorsBuffer(geometry, cells) {
+  _setColorsBuffer(gridMesh, cells) {
     const colorsBuffer = [];
     cells.forEach((cell) => {
       const cellColors = cell.cellColorsBuffer(this.logic);
       colorsBuffer.push(...cellColors);
     })
     const buffer = new THREE.Float32BufferAttribute(colorsBuffer, 3);
-    geometry.setAttribute("color", buffer);
+    gridMesh.geometry.setAttribute("color", buffer);
   }
 
   _updateGridCells(grid, cells, toRecolor) {
@@ -301,7 +323,7 @@ class GridController {
     }
   }
 
-  // push state to history, and make sure any changes to runSpec will effect
+  // push state to history, and make sure any changes to runSpec will effect the run
   save(store, history, runSpec) {
     this.logic = runSpec.bfLogic;
     const timeDirection = store.timeDirection;
@@ -573,23 +595,24 @@ class GridController {
     this.reRender(uiItems);
   }
 
-  // handle click-to-drag of the screen
-  drag(event, uiItems, prevMouse) {
-    const { camera, renderer } = uiItems;
-    const rect = renderer.domElement.getBoundingClientRect();
-    if (this._mouseOutOfBounds(rect, event)) return;
+    // handle click-to-drag of the screen
+    drag(event, uiItems, prevMouse) {
+      const { camera, renderer } = uiItems;
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (this._mouseOutOfBounds(rect, event)) return;
 
-    const deltaMove = {
-      x: event.clientX - prevMouse.x,
-      y: event.clientY - prevMouse.y,
-    };
+      const deltaMove = {
+        x: event.clientX - prevMouse.x,
+        y: event.clientY - prevMouse.y,
+      };
 
-    camera.position.x -= deltaMove.x / camera.zoom;
-    camera.position.y += deltaMove.y / camera.zoom;
-    this.reRender(uiItems);
-    return;
-  }
-
+      camera.position.x -= deltaMove.x / camera.zoom;
+      camera.position.y += deltaMove.y / camera.zoom;
+      this._ensureCameraInBounds(camera);
+      this.reRender(uiItems);
+      return;
+    }
+  
   _mouseOutOfBounds(rect, event) {
     const mouseX = event.clientX;
     const mouseY = event.clientY;
@@ -599,6 +622,25 @@ class GridController {
       mouseY < rect.top ||
       mouseY > rect.bottom
     );
+  }
+
+  _ensureCameraInBounds(camera) {
+    const zoom = camera.zoom * 1.1;
+    const cameraTop = (camera.top - camera.position.y) * zoom;
+    const cameraBottom = (camera.bottom - camera.position.y) * zoom;
+    const cameraLeft = (camera.left - camera.position.x) * zoom;
+    const cameraRight = (camera.right - camera.position.x) * zoom;
+    // console.log(zoom, Math.floor(cameraTop), Math.floor(cameraBottom), Math.floor(cameraLeft), Math.floor(cameraRight))
+    if (cameraTop < camera.bottom) {
+      camera.position.y -= (camera.bottom - cameraTop);
+    } else if (cameraBottom > camera.top) {
+      camera.position.y -= (camera.top - cameraBottom);
+    }
+    if (cameraLeft > camera.right) {
+      camera.position.x -= (camera.right - cameraLeft);
+    } else if (cameraRight < camera.left) {
+      camera.position.x -= (camera.left - cameraRight);
+    }
   }
 
   _clickGrid(pos, program, cell, uiItems) {
@@ -656,18 +698,22 @@ class GridController {
     const initSpec = this.getInitSpec();
     store.state = this.initState(initSpec);
     history.init(miscSettings.historyFidelity, store.state);
-    this.presentGridCells(store);
+    this.makeUiFromState(store);
   }
 
   // wrapper for update store with cells from createGridCells,
   // then re-render with reCenterCamera & reRender so the changes appear
-  presentGridCells(store) {
+  makeUiFromState(store) {
     const { uiItems, state } = store;
-    uiItems.cells = this.createGridCells(state.grid, uiItems.scene);
+    const { cells, meshStore } = this.createGridCells(state.grid, uiItems.scene);
+    uiItems.cells = cells;
+    // TODO: potentially refactor so that meshStore is saved in uiItems, 
+    // to replace clearUI() with removeMeshesFromScene()
+    console.log(meshStore);
+    this._updateCounters(state);
     const width = store.state.grid.length;
     const length = store.state.grid[0].length;
     this.reCenterCamera(store.uiItems, width, length);
-    this.reRender(uiItems);
   }
 }
 

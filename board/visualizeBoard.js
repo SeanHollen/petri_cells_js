@@ -14,7 +14,7 @@ const history = new HistoryManager().init(
   miscSettings.historyFidelity,
   store.state
 );
-controller.presentGridCells(store);
+controller.makeUiFromState(store);
 
 const buttonMapping = {
   backButton: "board-back-button",
