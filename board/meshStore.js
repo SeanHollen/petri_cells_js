@@ -40,8 +40,11 @@ class MeshStore {
   partitionCells(cells) {
     const paritions = [];
     for (let i = 0; i < this.meshes.length; i++) {
-      const mesh = this.meshes[i]
-      const cellGroup = cells.slice(i * this.cellsPerMesh, (i + 1) * this.cellsPerMesh);
+      const mesh = this.meshes[i];
+      const cellGroup = cells.slice(
+        i * this.cellsPerMesh,
+        (i + 1) * this.cellsPerMesh
+      );
       paritions.push({ mesh, cellGroup });
     }
     return paritions;
@@ -50,7 +53,7 @@ class MeshStore {
   addMeshesToScene(scene) {
     this.meshes.forEach((mesh) => {
       scene.add(mesh);
-    })
+    });
   }
 
   removeMeshesFromScene(scene) {
@@ -58,7 +61,7 @@ class MeshStore {
       scene.remove(mesh);
       mesh.geometry.dispose();
       mesh.material.dispose();
-    })
+    });
   }
 }
 

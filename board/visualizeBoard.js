@@ -93,15 +93,17 @@ eventHandleHelper.addEventListener("cell-details-2-edit-submit", () => {
   controller.editProgramWithColorsForm(store.state, inputVal, store.uiItems);
 });
 
-document.querySelector('.close-icon').addEventListener('click', function() {
+document.querySelector(".close-icon").addEventListener("click", function () {
   controller.deSelectCell();
   controller.reRender(store.uiItems);
 });
 
-document.getElementById('board-save-button').addEventListener('click', function() {
-  const runSpec = controller.getRunSpec();
-  controller.save(store, history, runSpec);
-});
+document
+  .getElementById("board-save-button")
+  .addEventListener("click", function () {
+    const runSpec = controller.getRunSpec();
+    controller.save(store, history, runSpec);
+  });
 
 addCanvasControlls(store, controller);
 

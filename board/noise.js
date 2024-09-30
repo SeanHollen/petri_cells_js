@@ -1,4 +1,4 @@
-import { BrainfuckLogic } from "../shared/brainfuckLogic.js"
+import { BrainfuckLogic } from "../shared/brainfuckLogic.js";
 
 class Noise {
   static killCells(grid, rng, spec) {
@@ -15,7 +15,8 @@ class Noise {
 
   static killInstructions(grid, rng, spec) {
     const programLengths = grid[0][0].length;
-    const numUpdates = grid.length * grid[0].length * programLengths * spec.quantileKilled;
+    const numUpdates =
+      grid.length * grid[0].length * programLengths * spec.quantileKilled;
     for (let i = 0; i < numUpdates; i++) {
       const cellX = Math.floor(rng.random() * grid.length);
       const cellY = Math.floor(rng.random() * grid[0].length);
@@ -27,4 +28,4 @@ class Noise {
   }
 }
 
-export { Noise }
+export { Noise };

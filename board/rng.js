@@ -1,7 +1,9 @@
 class Mulberry32 {
   constructor(seed) {
     if (seed < 0) {
-      console.error(`seed ${seed} is negative! this may lead to unespected behavior`);
+      console.error(
+        `seed ${seed} is negative! this may lead to unespected behavior`
+      );
     }
     this.state = seed;
   }

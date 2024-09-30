@@ -6,7 +6,10 @@ import { Mulberry32, hashStringToInt } from "./rng.js";
 import { Cell } from "./cell.js";
 import { MeshStore } from "./meshStore.js";
 import miscSettings from "../miscSettings.js";
-import { inflate, deflate } from 'https://cdn.jsdelivr.net/npm/pako@latest/dist/pako.esm.mjs';
+import {
+  inflate,
+  deflate,
+} from "https://cdn.jsdelivr.net/npm/pako@latest/dist/pako.esm.mjs";
 
 class GridController {
   constructor() {
@@ -98,7 +101,7 @@ class GridController {
   }
 
   _getShuffled(array, rng) {
-    const taggedValues = array.map(value => {
+    const taggedValues = array.map((value) => {
       return { value, sort: rng.random() };
     });
     const sorted = taggedValues.sort((a, b) => a.sort - b.sort);
@@ -130,7 +133,7 @@ class GridController {
     const total = flat.reduce((sum, program) => {
       const entropy = this._entropy(program);
       const compressed = deflate(new Uint8Array(program));
-      const cratio = compressed.length / program.length
+      const cratio = compressed.length / program.length;
       const complexity = entropy - cratio;
       return sum + complexity;
     }, 0);
@@ -140,16 +143,15 @@ class GridController {
   }
 
   _entropy(program) {
-    const dict = {}
+    const dict = {};
     program.forEach((x) => {
       if (!dict[x]) dict[x] = 0;
       dict[x]++;
     });
-    return Object.values(dict)
-      .reduce((entropy, count) => {
-        const px = count / program.length;
-        return entropy - px * Math.log(px, 2);
-      }, 0)
+    return Object.values(dict).reduce((entropy, count) => {
+      const px = count / program.length;
+      return entropy - px * Math.log(px, 2);
+    }, 0);
   }
 
   // move state progress back to the last epoch in history
@@ -166,7 +168,7 @@ class GridController {
     cells.forEach((cell) => {
       cell.markNotSelected();
     });
-    // "..." to clone the array, because otherwise, the concurrent modification 
+    // "..." to clone the array, because otherwise, the concurrent modification
     // leads to unexpected behavior, where only the first one gets removed
     [...scene.children].forEach((child) => {
       scene.remove(child);
@@ -224,8 +226,8 @@ class GridController {
     const mapping = {
       "step-counter": `Epoch: ${epoch}`,
       "unique-cells": `Unique Cells: ${uniqueCells}`,
-      "compression": `Compression: ${compression}`,
-    }
+      compression: `Compression: ${compression}`,
+    };
     Object.keys(mapping).forEach((k) => {
       document.getElementById(k).textContent = mapping[k];
     });
@@ -250,7 +252,7 @@ class GridController {
       const { mesh, writeIndex } = meshStore.propsForNthCell(i);
       cell.setMeshProperties(mesh, writeIndex);
     });
-    return { cells, meshStore, };
+    return { cells, meshStore };
   }
 
   _createMesh(cells, typicalProgramLen) {
@@ -282,7 +284,8 @@ class GridController {
     const indices = [];
     let idxPointer = 0;
     cells.forEach((cell) => {
-      const { cellVerticies, cellIndices } = cell.cellPositionsBuffer(idxPointer);
+      const { cellVerticies, cellIndices } =
+        cell.cellPositionsBuffer(idxPointer);
       vertices.push(...cellVerticies);
       indices.push(...cellIndices);
       idxPointer += cellVerticies.length / 3;
@@ -297,7 +300,7 @@ class GridController {
     cells.forEach((cell) => {
       const cellColors = cell.cellColorsBuffer(this.logic);
       colorsBuffer.push(...cellColors);
-    })
+    });
     const buffer = new THREE.Float32BufferAttribute(colorsBuffer, 3);
     gridMesh.geometry.setAttribute("color", buffer);
   }
@@ -595,24 +598,24 @@ class GridController {
     this.reRender(uiItems);
   }
 
-    // handle click-to-drag of the screen
-    drag(event, uiItems, prevMouse) {
-      const { camera, renderer } = uiItems;
-      const rect = renderer.domElement.getBoundingClientRect();
-      if (this._mouseOutOfBounds(rect, event)) return;
+  // handle click-to-drag of the screen
+  drag(event, uiItems, prevMouse) {
+    const { camera, renderer, gridDimensions } = uiItems;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (this._mouseOutOfBounds(rect, event)) return;
 
-      const deltaMove = {
-        x: event.clientX - prevMouse.x,
-        y: event.clientY - prevMouse.y,
-      };
+    const deltaMove = {
+      x: event.clientX - prevMouse.x,
+      y: event.clientY - prevMouse.y,
+    };
 
-      camera.position.x -= deltaMove.x / camera.zoom;
-      camera.position.y += deltaMove.y / camera.zoom;
-      this._ensureCameraInBounds(camera);
-      this.reRender(uiItems);
-      return;
-    }
-  
+    camera.position.x -= deltaMove.x / camera.zoom;
+    camera.position.y += deltaMove.y / camera.zoom;
+    this._ensureCameraInBounds(camera, gridDimensions);
+    this.reRender(uiItems);
+    return;
+  }
+
   _mouseOutOfBounds(rect, event) {
     const mouseX = event.clientX;
     const mouseY = event.clientY;
@@ -624,23 +627,23 @@ class GridController {
     );
   }
 
-  _ensureCameraInBounds(camera) {
-    const zoom = camera.zoom * 1.1;
-    const cameraTop = (camera.top - camera.position.y) * zoom;
-    const cameraBottom = (camera.bottom - camera.position.y) * zoom;
-    const cameraLeft = (camera.left - camera.position.x) * zoom;
-    const cameraRight = (camera.right - camera.position.x) * zoom;
-    // console.log(zoom, Math.floor(cameraTop), Math.floor(cameraBottom), Math.floor(cameraLeft), Math.floor(cameraRight))
-    if (cameraTop < camera.bottom) {
-      camera.position.y -= (camera.bottom - cameraTop);
-    } else if (cameraBottom > camera.top) {
-      camera.position.y -= (camera.top - cameraBottom);
-    }
-    if (cameraLeft > camera.right) {
-      camera.position.x -= (camera.right - cameraLeft);
-    } else if (cameraRight < camera.left) {
-      camera.position.x -= (camera.left - cameraRight);
-    }
+  _ensureCameraInBounds(camera, gridDimensions) {
+    // const { cellPxlSize } = this.miscSettings;
+    // const zoom = camera.zoom // * 1.1;
+    // const cameraTop = (camera.top - camera.position.y) * zoom;
+    // const cameraBottom = (camera.bottom - camera.position.y) * zoom;
+    // const cameraLeft = (camera.left - camera.position.x) * zoom;
+    // const cameraRight = (camera.right - camera.position.x) * zoom;
+    // if (cameraTop < gridDimensions.bottom) {
+    //   camera.position.y -= gridDimensions.bottom - cameraTop;
+    // } else if (cameraBottom > gridDimensions.top) {
+    //   camera.position.y -= gridDimensions.top - cameraBottom;
+    // }
+    // if (cameraLeft > gridDimensions.right) {
+    //   camera.position.x -= gridDimensions.right - cameraLeft;
+    // } else if (cameraRight < gridDimensions.left) {
+    //   camera.position.x -= gridDimensions.left - cameraRight;
+    // }
   }
 
   _clickGrid(pos, program, cell, uiItems) {
@@ -705,14 +708,21 @@ class GridController {
   // then re-render with reCenterCamera & reRender so the changes appear
   makeUiFromState(store) {
     const { uiItems, state } = store;
-    const { cells, meshStore } = this.createGridCells(state.grid, uiItems.scene);
+    const { cells, meshStore } = this.createGridCells(
+      state.grid,
+      uiItems.scene
+    );
     uiItems.cells = cells;
-    // TODO: potentially refactor so that meshStore is saved in uiItems, 
+    // TODO: potentially refactor so that meshStore is saved in uiItems,
     // to replace clearUI() with removeMeshesFromScene()
-    console.log(meshStore);
     this._updateCounters(state);
     const width = store.state.grid.length;
     const length = store.state.grid[0].length;
+    const { cellPxlSize, cellPaddingPxl } = this.miscSettings;
+    const ply = cellPxlSize + cellPaddingPxl;
+    const x = ply * width / 2;
+    const y = ply * length / 2;
+    uiItems.gridDimensions = { top: y, bottom: -y, left: -x, right: x }
     this.reCenterCamera(store.uiItems, width, length);
   }
 }
