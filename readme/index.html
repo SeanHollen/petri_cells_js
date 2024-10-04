@@ -12,7 +12,7 @@
 <body>
   <div class="outer-section">
     <div class="section">
-      <p><a href="../">back to sim</a></p>
+      <p><a href="../">go back to play with the sim</a></p>
       <h1>Petri Cells BFF: A Simulation of "Artificial Life"</h1>
       <p>This is the first high-complexity replicator I got, in an early version of the program. It's the result that
         made me jump out of
@@ -34,7 +34,12 @@
           href="https://seanhollen.com/conway">here</a>, a program delivers emergent complexity out of simple
         interaction
         rules.</p>
-      <p>There are many cellular automata variants with hard-coded rules for cell interaction. But let’s take things a
+      <p>There are many cellular automata variants with hard-coded rules for cell interaction. But before
+        you start getting bored, and saying "sure, we can do some fun things with cellular automata. But isn't that old
+        news?"
+        Know that this particular instantiation is completely unlike anything Conway dreampt of.
+      </p>
+      <p>So let’s take things a
         step further: what if we allow variation in how the different cells on the grid behave? </p>
       <p>In this project, every cell is is a self-contained computer program. These programs are composed of 10
         principle
@@ -43,13 +48,13 @@
         each program can be represented as an 8x8 square “cell”, like this.</p>
       <p><img src="./media/single_cell.png" width="100px" , height="100px" alt="an 8x8 colorful cell"></p>
       <p>Okay. If the cells are each literally self-contained programs, what is the <em>programming language</em>? For
-        that, we repurpose a language which, though esoteric, you may have heard of: <a
+        that, the authors repurpose a language which, though esoteric, you may have heard of: <a
           href="https://en.wikipedia.org/wiki/Brainfuck">Brainfuck</a>. A super-minimalist language, it was made with
         the
-        goal of creating the smallest possible compiler for a Turing-complete language.</p>
+        goal of creating the smallest possible interpreter for a Turing-complete language.</p>
       <p>Supposedly, Brainfuck (BF) wasn’t meant for practical uses, but rather as a theoretical exercise in language
         design. That doesn’t apply here, though, because the language is actually chosen for it’s practicality. Because
-        the syntax is so minimalist, we can randomly create any program, and it will be executable.</p>
+        the syntax is so minimalist, any randomly created program will be executable.</p>
       <p>Actually, we are not going to be using vanilla BF, but rather, a variant designed for programs to modify
         themselves, “BFF”. Whereas standard BF takes in an input and returns an output, BFF will <em>write</em> to the
         same tape that it <em>reads</em> from, modifying itself in real-time.</p>
@@ -82,7 +87,8 @@
       <ol>
         <li><strong>The programs are concatenated</strong>, literally like concatenating arrays or strings, into one
           program.</li>
-        <li><strong>The program is executed</strong>, using the compiler for BFF (self-modifying Brainfuck). Since the
+        <li><strong>The program is executed</strong>, using the interpreter for BFF (self-modifying Brainfuck). Since
+          the
           program makes changes to itself, the result will be a modified program.</li>
         <li><strong>The program is split in half</strong>, resulting in 2 new programs.</li>
       </ol>
@@ -92,9 +98,8 @@
       <p>Now that you know the chemistry behind transforming 2 programs into 2 programs, we can introduce: THE GRID.</p>
       <p><img src="./media/the_grid.png" alt="a grid of cells, each sub-cell is itself an 8x8 grid of diverse colors">
       </p>
-      <p>The rules for the grid are quite simple. Each epoch, we iterate through all of the cells in the grid. The cell
+      <p>The rules for the grid are quite simple. Each epoch, iterate through all of the cells in the grid. The cell
         randomly chooses another cell with in its “radius” of adjacency (by default, no more than 2 away on each axis).
-        We
         skip a cell if it the cell it’s trying to pair with has already been reacted with in the same epoch (this
         probably
         helps with parallel processing in the original, but doesn’t make a big difference in my version). The cells
@@ -137,6 +142,9 @@
         board, as most can last a number of epochs with relatively few changes. Becoming a “persister” is in itself is a
         kind of adaptation, so to speak. But the replicators take things quite a step further than the pesisteres, by
         multiplying themselves across the grid.</p>
+      <p>When life emerges, it almost never goes away. So the board essentially becomes "locked" in one of a discrete
+        number of "possibilities". For all of these observations, it feels like a coin toss whether the behavior implies something
+        deeper about life and our world, or the behavior is just a pesky fluke of how the underlying language is implemented.</p>
       <h2 id="noise">Noise</h2>
       <p>After a while, I got bored of this, so I introduced of noise options. The options are “kill cells” and “kill
         instructions”.</p>
@@ -189,21 +197,27 @@
         board look ordered - a fact which runs contrary to the intuitions based on entropy (or does it?). I should study
         this more.</p>
       <p><strong>Unique Cell Counter and Compression Statistic</strong></p>
-      <p>The original paper computes complexity precisely with special formulas. I tried to use the same formula they used, but found that the performance cost was too high. (Maybe they did it in a faster way).</p>
-    <p>Instead, I measure 2 relatively simple proxy metrics each epoch, both of which are surprisingly informative:</p>
-    <ul>
-    <li>The number of unique cells</li>
-    <li>What I call &quot;compression&quot;, which is just the ratio of the original length and the compressed length.</li>
-    </ul>
-    <p>I compress with Pako, for no particular reason, except that it was the first library that worked.</p>
-    <p>An interesting result from these metrics is the heterogeneity of replicators. </p>
-    <p>Some replicators are homogeneous, allowing only a couple variations, where others are heterogeneous, allowing hundreds of different variants - especially at first. I’m not sure which kind are my favorite. </p>
-    <p>Despite the diversity of the the heterogeneous replicators, which allow for many subtle variants, there is rarely any confusion whether a group of cells is part of the same “species”.</p>
+      <p>The original paper computes complexity precisely with special formulas. I tried to use the same formula they
+        used, but found that the performance cost was too high. (Maybe they did it in a faster way).</p>
+      <p>Instead, I measure 2 relatively simple proxy metrics each epoch, both of which are surprisingly informative:
+      </p>
+      <ul>
+        <li>The number of unique cells</li>
+        <li>What I call &quot;compression&quot;, which is just the ratio of the original length and the compressed
+          length.</li>
+      </ul>
+      <p>I compress with Pako, for no particular reason, except that it was the first library that worked.</p>
+      <p>An interesting result from these metrics is the heterogeneity of replicators. </p>
+      <p>Some replicators are homogeneous, allowing only a couple variations, where others are heterogeneous, allowing
+        hundreds of different variants - especially at first. I’m not sure which kind are my favorite. </p>
+      <p>Despite the diversity of the the heterogeneous replicators, which allow for many subtle variants, there is
+        rarely any confusion whether a group of cells is part of the same “species”.</p>
       <p><strong>History</strong></p>
       <p>To save time, you may want to run the simulations on high speeds, but that can make it easy to miss important
         events. Therefore, these simulations store their history, allowing you to rewind (even run the simulation in
         reverse). </p>
-      <p>To save on space, grid states are saved in 50-epoch increments when you run the animation. This is not a bug; I thought that 
+      <p>To save on space, grid states are saved in 50-epoch increments when you run the animation. This is not a bug; I
+        thought that
         storing <em>every</em> increment would be overkill on memory. If you’re still
         worried about space, you can turn it off (for the most part) by running this command from the console.</p>
       <pre><code>controller.miscSettings.<span class="hljs-attr">storeStateWhenRunning</span> = <span class="hljs-literal">false</span>;
@@ -241,59 +255,115 @@
       <p><strong>Super large grids</strong></p>
       <p>By using Three.js, I eventually got it working with large grids. Case in Point:</p>
       <p><img src="./media/large grid.png"
-        alt="a 100x100 grid, with different cluster of life encroaching on each other"></p>
+          alt="a 100x100 grid, with different cluster of life encroaching on each other"></p>
       <p><strong> Grid Zooming</strong></p>
       <p>The site currently supports larger grids. To facilitate that, you can zoom and pan around. However, for super
         large grids, the zooming gets quite laggy.</p>
       <h2 id="versions">Versions</h2>
       <p>This project has gone through a few iterations so far.</p>
       <p><strong>Version 0: Kivy</strong></p>
-      <p>My initial mockup of the grid, along with the BFF interpreter visualization, was created in Kivy. Although I thought it was fun to experiment with a new framework, 
+      <p>My initial mockup of the grid, along with the BFF interpreter visualization, was created in Kivy. Although I
+        thought it was fun to experiment with a new framework,
         I quickly yearned for the convenience of JS - and the ability to easiliy run the simulation on the web.
       </p>
       <p><strong>Version 1: Vanilla HTML/JS</strong></p>
-      <p>In the original JS implementation, each cell was made a separate canvas element. Every frame, the application would remove and re-creating
+      <p>In the original JS implementation, each cell was made a separate canvas element. Every frame, the application
+        would remove and re-creating
         all of the canvas objects.</p>
       <p>Unspurprisingly, Version 1 was initially very slow.</p>
-      <p>The first obvious improvement was to not do that. Reuse existing canvas objects, rather than delete and re-create updated versions.</p>
-      <p>Optimization #2 involved batching of the updates. Previously, the program was drawing each tile every epoch using the <code>fillRect()</code> function. 
+      <p>The first obvious improvement was to not do that. Reuse existing canvas objects, rather than delete and
+        re-create updated versions.</p>
+      <p>Optimization #2 involved batching of the updates. Previously, the program was drawing each tile every epoch
+        using the <code>fillRect()</code> function.
         So the speedup was to precompute the updates, and sort them by color. Then, for each of those batches:
       <p>
-        <ul>
+      <ul>
         <li>Run <code>ctx.fillStyle = color</code></li>
         <li>Run <code>ctx.rect()</code>, for each tile</li>
         <li>Run <code>ctx.fill()</code></li>
-        </ul>
-        <p>That way, the "fill" step happens once per cell (program), not once per tile (instruction).</p>
-        <p>I did get a really fascinating bug in this version. There was a bug that caused certain programs to become much (ie 10x) longer than they were supposed to be. But this did not break the UI, because the UI was flexible enough to <em>allow</em> for super long programs:</p>
-        <p><img src="./media/weird_bug.gif"
-          alt="certain random cells look really weird and unusually complex"></p>
-        <p>The buggy cells are pretty blurry, becuase there aren't enough pixels to show them fully in this version - still, it looks interesting.</p>
-        <p>This bug could never occur in later versions, because (due to optimizations), later versions don't allow different cells to be differently-lengthed in the UI.</p>
-        <strong>Version 2: ThreeJS</strong></p>
+      </ul>
+      <p>That way, the "fill" step happens once per cell (program), not once per tile (instruction).</p>
+      <p>I did get a really fascinating bug in this version. There was a bug that caused certain programs to become much
+        (ie 10x) longer than they were supposed to be. But this did not break the UI, because the UI was flexible enough
+        to <em>allow</em> for super long programs:</p>
+      <p><img src="./media/weird_bug.gif" alt="certain random cells look really weird and unusually complex"></p>
+      <p>The buggy cells are pretty blurry, becuase there aren't enough pixels to show them fully in this version -
+        still, it looks interesting.</p>
+      <p>This bug could never occur in later versions, because (due to optimizations), later versions don't allow
+        different cells to be differently-lengthed in the UI.</p>
+      <strong>Version 2: ThreeJS</strong></p>
       <p>The speedup in Version 2 wasn&#39;t good enough. To enable larger grids, and better usability, I wanted to
         support zooming and panning. I achieved this with ThreeJS.</p>
-        <p>The intuitive &quot;first attempt&quot; at using Three JS is:</p>
-        <ul>
-        <li>Each program / &quot;cell&quot; corresponds to a Three JS &quot;Group&quot;. Together, they make up the grid.</li>
-        <li>A program contains a list of instructions. Each &quot;instruction&quot; corresponds to an individual Three JS PlaneGeometry square. Together, they make up the sub-grids.</li>
-        </ul>
-        <p>But that wasn&#39;t good enough. On a 20x20 grid, with programs 64-long, that&#39;s 400x64 individual objects to render, which makes the updates very slow.</p>
-        <p>The solution? Play with meshes. You can manually assign the vertices and indices in the mesh, and render each cell as a single mesh. It gets a little messy, but it certainly speeds things up. Now you have one object per cell, not one object per instruction.</p>
-        <p>But that still wasn&#39;t good enough. One object per cell is still too many objects, and Three JS can only handle so many objects. The basic mesh optimization worked for my standard 20x20 grids. But as soon as you tried to make super large, 200x200 grids, then zooming froze up significantly. </p>
-        <p>The solution? Render the entire board as one giant mesh, of course! This was pretty finicky, because now we need to manually calculate the positions and sub-positions of the cells and tiles, respectively.</p>
-        <p>But that still wasn&#39;t good enough. I now got this error: <code>WebGL warning: drawElementsInstanced: Context&#39;s max indexCount is 30000000, but 34560000 requested</code> So Three JS has a limit on how big meshes could be? Who knew!</p>
-        <p>The solution? Divide the number of vertices that you need by the max number of vertices per mesh, then generate that number of meshes. Make all the mesh objects basically the same, except that you &quot;assign&quot; different cells to different meshes, to even out the load. You then create all the cells the same as before, but belonging to different meshes.</p>
-        <p>That&#39;s the version that exists now. Is it good enough? I don&#39;t think so. You can make super large grids, but then zooming is super laggy (which annoyingly reverts back to page scrolling behavior). Feel free to test the limits yourself, and make suggestions. </p>
-        <p>The solution? IDK, but I think it&#39;s good enough for now.</p>
+      <p>The intuitive &quot;first attempt&quot; at using Three JS is:</p>
+      <ul>
+        <li>Each program / &quot;cell&quot; corresponds to a Three JS &quot;Group&quot;. Together, they make up the
+          grid.</li>
+        <li>A program contains a list of instructions. Each &quot;instruction&quot; corresponds to an individual Three
+          JS PlaneGeometry square. Together, they make up the sub-grids.</li>
+      </ul>
+      <p>But that wasn&#39;t good enough. On a 20x20 grid, with programs 64-long, that&#39;s 400x64 individual objects
+        to render, which makes the updates very slow.</p>
+      <p>The solution? Play with meshes. You can manually assign the vertices and indices in the mesh, and render each
+        cell as a single mesh. It gets a little messy, but it certainly speeds things up. Now you have one object per
+        cell, not one object per instruction.</p>
+      <p>But that still wasn&#39;t good enough. One object per cell is still too many objects, and Three JS can only
+        handle so many objects. The basic mesh optimization worked for my standard 20x20 grids. But as soon as you tried
+        to make super large, 200x200 grids, then zooming froze up significantly. </p>
+      <p>The solution? Render the entire board as one giant mesh, of course! This was pretty finicky, because now we
+        need to manually calculate the positions and sub-positions of the cells and tiles, respectively.</p>
+      <p>But that still wasn&#39;t good enough. I now got this error:
+        <code>WebGL warning: drawElementsInstanced: Context&#39;s max indexCount is 30000000, but 34560000 requested</code>
+        So Three JS has a limit on how big meshes could be? Who knew!
+      </p>
+      <p>The solution? Divide the number of vertices that you need by the max number of vertices per mesh, then generate
+        that number of meshes. Make all the mesh objects basically the same, except that you &quot;assign&quot;
+        different cells to different meshes, to even out the load. You then create all the cells the same as before, but
+        belonging to different meshes.</p>
+      <p>That&#39;s the version that exists now. Is it good enough? I don&#39;t think so. You can make super large
+        grids, but then zooming is super laggy (which annoyingly reverts back to page scrolling behavior). Feel free to
+        test the limits yourself, and make suggestions. </p>
+      <p>The solution? IDK, but I think it&#39;s good enough for now.</p>
       <p><strong>Version 3?</strong></p>
       <p>A future version 3 could consist of a few things. </p>
       <ul>
-        <li>The original paper experiments with several different minimalist programming languages My version only supports BFF, but it would be nice to extend it.</li>
-        <li>The original paper creates graphs of complexity over time. I think this would be fun, but it&#39;s a tricky feature to shoehorn in.</li>
+        <li>The original paper experiments with several different minimalist programming languages My version only
+          supports BFF, but it would be nice to extend it.</li>
+        <li>The original paper creates graphs of complexity over time. I think this would be fun, but it&#39;s a tricky
+          feature to shoehorn in.</li>
         <li>I think some sort of &quot;full screen mode&quot; would be cool.</li>
-        <li>My performance was faster than I expected, given that the whole simulation, BFF and all, runs client-side with basic JS. But if I wanted to &quot;next-level&quot; my simulation, the next step would be to use GPUs - maybe with WebGPU?</li>
-        </ul>
+        <li>My performance was faster than I expected, given that the whole simulation, BFF and all, runs client-side
+          with basic JS. But if I wanted to &quot;next-level&quot; my simulation, the next step would be to use GPUs -
+          maybe with WebGPU?</li>
+      </ul>
+      <h2>Parting Ideas</h2>
+      <p>Undoubtedly, the code used by the research paper has capabilities that exceed mine. Maybe. I haven&#39;t run
+        it, because it was written mostly in Cuda, and I don&#39;t want to start up a cloud instance for it. As far as
+        animations, the best display of the emerging life was a <a
+          href="https://seanhollen.com/petri_cells_bff/">youtube video</a> that, while cool, is really zoomed out and
+        hard to understand what&#39;s going on.</p>
+      <p>So that&#39;s how I pitch my &quot;petri cells&quot; app. It does most things like 80% as well as the research,
+        but in a much more accessible and Interactive way. Interactivity is something that I value very highly. In some
+        minor way, playing with online Conway&#39;s Game of Life sims when I was 12 changed my life and approach to
+        technology. If it was stuck between terminal commands, I would have missed out.</p>
+      <p>Going forward, I will advocate for something I would like to call Victor-completeness after <a
+          href="https://www.youtube.com/watch?v=PUv66718DII">Bret Victor</a>. It dictates that: All aspects of a
+        program&#39;s application state, &quot;complete coverage&quot; of it&#39;s memory, as it were, must be:</p>
+      <ol>
+        <li>Included as part of the visualization</li>
+        <li>Live (eg: pausable, rewindable, user controls the time).</li>
+        <li>Editable</li>
+      </ol>
+      <p>And Bret Victor might go farther, but I get the feeling he would never be truly satisfied.</p>
+      <p>Victor-completeness is not easy. Implementing BFF was the least time-intensive part of this entire project.
+        (Now that I&#39;ve brought that up, if you&#39;d like to add additional languages to this visualization, <a
+          href="https://github.com/SeanHollen/petri_cells_js">feel free to contribute</a>. Trust me, it&#39;s the
+        easiest part!)</p>
+      <p>This may be a controversial statement, but I believe the people who currently have the best handle on UX are
+        game designers. But the UX principles in game design need not be relegated to games (as fun as they are).</p>
+      <p>So my simulation isn&#39;t as good as the original, but that&#39;s why I like it. Everything is implemented in
+        a way that (should be) simple and easy to understand. My measure of complexity is more basic, but it does a
+        pretty good job. If I had to guess, my implementation of noise is also simpler. But it gets the job done.</p>
+
     </div>
   </div>
 </body>
